@@ -66,6 +66,18 @@ Content here
    :QuartofyRevealJS
    ```
 
+3. To stop the preview server:
+   ```vim
+   :QuartofyStop
+   ```
+
+## Controlling the Preview Server
+
+- `:QuartofyStop` - Stop the currently running preview server
+  - If tracked by Neovim, stops the job directly
+  - Otherwise, attempts to find and kill the process on the configured port
+  - Shows a message confirming the action
+
 ## What It Does
 
 When you run the `:Quartofy` command:

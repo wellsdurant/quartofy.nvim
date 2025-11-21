@@ -6,9 +6,37 @@ M.config = {
   preview_port = 4200,        -- Default port for quarto preview
 }
 
+-- Store the preview job ID
+M.preview_job_id = nil
+
 -- Setup function for user configuration
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+end
+
+-- Function to stop the preview server
+function M.stop_preview()
+  if M.preview_job_id then
+    vim.fn.jobstop(M.preview_job_id)
+    M.preview_job_id = nil
+    echo_msg("Quartofy: Preview stopped")
+  else
+    -- Try to kill by port
+    local kill_cmd = string.format("lsof -ti:%d | xargs kill -9 2>/dev/null", M.config.preview_port)
+    vim.fn.jobstart(kill_cmd, {
+      on_exit = function(_, exit_code)
+        if exit_code == 0 then
+          vim.schedule(function()
+            echo_msg("Quartofy: Preview stopped (killed by port)")
+          end)
+        else
+          vim.schedule(function()
+            echo_msg("Quartofy: No preview server running on port " .. M.config.preview_port)
+          end)
+        end
+      end,
+    })
+  end
 end
 
 -- Helper function to display message without requiring Enter
@@ -255,9 +283,11 @@ function M.process()
           M.config.preview_port
         )
 
-        vim.fn.jobstart(preview_cmd, {
+        -- Store the preview job ID for later control
+        M.preview_job_id = vim.fn.jobstart(preview_cmd, {
           detach = true,
           on_exit = function()
+            M.preview_job_id = nil
             vim.schedule(function()
               echo_msg("Quartofy: Preview stopped")
             end)
@@ -266,7 +296,7 @@ function M.process()
 
         -- Notify user that command is done
         vim.defer_fn(function()
-          echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port)
+          echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (use :QuartofyStop to stop)")
         end, 1000)
       else
         vim.schedule(function()

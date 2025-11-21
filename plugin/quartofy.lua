@@ -18,6 +18,13 @@ end, {
   desc = "Process markdown file for Quarto revealjs presentation"
 })
 
+-- Command to stop the preview server
+vim.api.nvim_create_user_command("QuartofyStop", function()
+  require("quartofy").stop_preview()
+end, {
+  desc = "Stop the Quartofy preview server"
+})
+
 -- Default keybinding (can be disabled via setup)
 local function setup_default_keybinding()
   local quartofy = require("quartofy")
