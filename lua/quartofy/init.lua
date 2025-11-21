@@ -124,34 +124,31 @@ local function get_zotero_citation(item_id)
     return nil
   end
 
-  -- Check if the function exists
-  if type(zotero.get_item) ~= "function" then
-    vim.schedule(function()
-      vim.notify("Quartofy: zotero.get_item function not found. Available functions: " .. vim.inspect(vim.tbl_keys(zotero)), vim.log.levels.WARN)
-    end)
-    return nil
+  -- Try to access the internal database/API
+  -- zotero-md.nvim may store data differently, try accessing the db module
+  local db_ok, db = pcall(require, "zotero-md.db")
+  if db_ok and db and type(db.get_item) == "function" then
+    local citation_ok, citation = pcall(db.get_item, item_id)
+    if citation_ok and citation then
+      vim.schedule(function()
+        vim.notify("Quartofy: Successfully retrieved citation data via db.get_item", vim.log.levels.INFO)
+      end)
+      return citation
+    end
   end
 
-  -- Get citation data from zotero-md
-  local citation_ok, citation = pcall(zotero.get_item, item_id)
-  if not citation_ok then
+  -- Try accessing items table directly
+  if db and db.items and db.items[item_id] then
     vim.schedule(function()
-      vim.notify("Quartofy: Error calling zotero.get_item: " .. tostring(citation), vim.log.levels.ERROR)
+      vim.notify("Quartofy: Successfully retrieved citation data via db.items", vim.log.levels.INFO)
     end)
-    return nil
-  end
-
-  if not citation then
-    vim.schedule(function()
-      vim.notify("Quartofy: zotero.get_item returned nil for ID: " .. item_id, vim.log.levels.WARN)
-    end)
-    return nil
+    return db.items[item_id]
   end
 
   vim.schedule(function()
-    vim.notify("Quartofy: Successfully retrieved citation data", vim.log.levels.INFO)
+    vim.notify("Quartofy: Could not retrieve citation for ID: " .. item_id .. ". zotero-md.nvim may use a different API or the item may not be in the database.", vim.log.levels.WARN)
   end)
-  return citation
+  return nil
 end
 
 -- Helper function to format citation in IEEE style
