@@ -190,32 +190,39 @@ function M.process()
   end
   qmd_file:close()
 
-  -- Render with Quarto (suppress output)
+  -- Render with Quarto using jobstart for better integration
   local render_cmd = string.format(
-    "cd %s && quarto render %s --to revealjs >/dev/null 2>&1",
+    "cd %s && quarto render %s --to revealjs",
     vim.fn.shellescape(target_dir),
     vim.fn.shellescape(filename .. ".qmd")
   )
 
-  local render_result = os.execute(render_cmd)
-  if render_result ~= 0 then
-    vim.notify("Quarto render failed", vim.log.levels.ERROR)
-    return
-  end
+  -- Run render synchronously
+  local render_job = vim.fn.jobstart(render_cmd, {
+    on_exit = function(_, exit_code)
+      if exit_code == 0 then
+        -- Start preview after successful render
+        local preview_cmd = string.format(
+          "cd %s && quarto preview %s >/dev/null 2>&1",
+          vim.fn.shellescape(target_dir),
+          vim.fn.shellescape(filename .. ".qmd")
+        )
 
-  -- Preview with Quarto (async, suppress output)
-  local preview_cmd = string.format(
-    "cd %s && quarto preview %s >/dev/null 2>&1",
-    vim.fn.shellescape(target_dir),
-    vim.fn.shellescape(filename .. ".qmd")
-  )
-
-  -- Run preview in background
-  vim.fn.jobstart(preview_cmd, {
-    detach = true,
-    on_stdout = function() end,
-    on_stderr = function() end,
+        vim.fn.jobstart(preview_cmd, {
+          detach = true,
+        })
+      else
+        vim.schedule(function()
+          vim.notify("Quarto render failed", vim.log.levels.ERROR)
+        end)
+      end
+    end,
+    stdout_buffered = true,
+    stderr_buffered = true,
   })
+
+  -- Wait for render to complete
+  vim.fn.jobwait({render_job}, -1)
 end
 
 return M
