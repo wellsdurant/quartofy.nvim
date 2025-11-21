@@ -114,26 +114,10 @@ local function sanitize_filename(filename)
   return sanitized
 end
 
--- Helper function to load Zotero cache if not already loaded
+-- Helper function to load Zotero cache if not already loaded or if database changed
 local function ensure_zotero_cache()
   local cache_ok, cache = pcall(require, "zotero-md.cache")
   if not cache_ok or not cache then
-    return false
-  end
-
-  local references = cache.get_references()
-  if references and type(references) == "table" and #references > 0 then
-    -- Cache already populated
-    return true
-  end
-
-  -- Try to load references from database
-  vim.schedule(function()
-    vim.notify("Quartofy: Loading Zotero database...", vim.log.levels.INFO)
-  end)
-
-  local db_ok, database = pcall(require, "zotero-md.database")
-  if not db_ok or not database then
     return false
   end
 
@@ -150,21 +134,64 @@ local function ensure_zotero_cache()
     return false
   end
 
-  -- Load references from database
-  local load_ok, refs = pcall(database.load_references, db_path)
-  if not load_ok or not refs or type(refs) ~= "table" then
-    vim.schedule(function()
-      vim.notify("Quartofy: Failed to load references from Zotero database", vim.log.levels.ERROR)
-    end)
-    return false
+  local references = cache.get_references()
+  local should_reload = false
+
+  if not references or type(references) ~= "table" or #references == 0 then
+    -- Cache is empty, need to load
+    should_reload = true
+  else
+    -- Cache exists, check if database has been modified since cache was created
+    local db_mtime = vim.fn.getftime(db_path)
+    local cache_age = cache.get_age()
+
+    if db_mtime >= 0 and cache_age then
+      -- Calculate when cache was created (current time - age)
+      local cache_time = os.time() - cache_age
+
+      if db_mtime > cache_time then
+        -- Database has been modified since cache was created
+        should_reload = true
+        vim.schedule(function()
+          vim.notify("Quartofy: Zotero database updated, reloading cache...", vim.log.levels.INFO)
+        end)
+      else
+        -- Cache is up to date
+        return true
+      end
+    else
+      -- Can't determine times, use existing cache
+      return true
+    end
   end
 
-  -- Cache the references
-  cache.set_references(refs)
+  -- Load or reload references from database
+  if should_reload then
+    vim.schedule(function()
+      vim.notify("Quartofy: Loading Zotero database...", vim.log.levels.INFO)
+    end)
 
-  vim.schedule(function()
-    vim.notify("Quartofy: Loaded " .. #refs .. " references from Zotero database", vim.log.levels.INFO)
-  end)
+    local db_ok, database = pcall(require, "zotero-md.database")
+    if not db_ok or not database then
+      return false
+    end
+
+    -- Load references from database
+    local load_ok, refs = pcall(database.load_references, db_path)
+    if not load_ok or not refs or type(refs) ~= "table" then
+      vim.schedule(function()
+        vim.notify("Quartofy: Failed to load references from Zotero database", vim.log.levels.ERROR)
+      end)
+      return false
+    end
+
+    -- Cache the references
+    cache.set_references(refs)
+
+    vim.schedule(function()
+      vim.notify("Quartofy: Loaded " .. #refs .. " references from Zotero database", vim.log.levels.INFO)
+    end)
+  end
 
   return true
 end
