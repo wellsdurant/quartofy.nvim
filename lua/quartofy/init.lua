@@ -1,5 +1,15 @@
 local M = {}
 
+-- Default configuration
+M.config = {
+  default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
+}
+
+-- Setup function for user configuration
+function M.setup(opts)
+  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+end
+
 -- Helper function to check if file exists
 local function file_exists(path)
   local f = io.open(path, "r")

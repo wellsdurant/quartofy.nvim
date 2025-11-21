@@ -17,3 +17,19 @@ vim.api.nvim_create_user_command("QuartofyRevealJS", function()
 end, {
   desc = "Process markdown file for Quarto revealjs presentation"
 })
+
+-- Default keybinding (can be disabled via setup)
+local function setup_default_keybinding()
+  local quartofy = require("quartofy")
+  if quartofy.config.default_keybinding then
+    vim.keymap.set("n", "<Leader>nr", function()
+      quartofy.process()
+    end, {
+      desc = "Quartofy: Render and preview revealjs presentation",
+      silent = true
+    })
+  end
+end
+
+-- Set up default keybinding after a short delay to allow user config to load
+vim.defer_fn(setup_default_keybinding, 0)

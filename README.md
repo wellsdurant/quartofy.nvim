@@ -54,17 +54,17 @@ Content here
 ![Image](./images/example.png)
 ```
 
-2. Open the file in Neovim and run:
+2. Open the file in Neovim and press `<Leader>nr` (default keybinding)
 
-```vim
-:Quartofy
-```
+   Or use the command:
+   ```vim
+   :Quartofy
+   ```
 
-or
-
-```vim
-:QuartofyRevealJS
-```
+   Or the alias:
+   ```vim
+   :QuartofyRevealJS
+   ```
 
 ## What It Does
 
@@ -103,7 +103,33 @@ Running `:Quartofy` will:
 
 ## Configuration
 
-Currently, the plugin works out of the box with no configuration needed. The working directory is hardcoded to `/tmp/quartofy/`.
+The plugin works out of the box with sensible defaults. To customize, call `setup()` in your Neovim config:
+
+```lua
+require("quartofy").setup({
+  default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
+})
+```
+
+### Disabling the Default Keybinding
+
+If you want to set your own keybinding instead:
+
+```lua
+-- For lazy.nvim
+{
+  "wellsdurant/quartofy.nvim",
+  config = function()
+    require("quartofy").setup({
+      default_keybinding = false,
+    })
+    -- Set your own keybinding
+    vim.keymap.set("n", "<Leader>qr", function()
+      require("quartofy").process()
+    end, { desc = "Quartofy render" })
+  end,
+}
+```
 
 ## Troubleshooting
 
