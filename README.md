@@ -24,18 +24,27 @@ A Neovim plugin that streamlines the workflow of creating Quarto revealjs presen
 ```lua
 {
   "wellsdurant/quartofy.nvim",
+  dependencies = {
+    "wellsdurant/zotero-md.nvim", -- Optional: for Zotero citation processing
+  },
 }
 ```
 
 ### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
-use "wellsdurant/quartofy.nvim"
+use {
+  "wellsdurant/quartofy.nvim",
+  requires = {
+    "wellsdurant/zotero-md.nvim", -- Optional: for Zotero citation processing
+  },
+}
 ```
 
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
+Plug 'wellsdurant/zotero-md.nvim'  " Optional: for Zotero citation processing
 Plug 'wellsdurant/quartofy.nvim'
 ```
 
