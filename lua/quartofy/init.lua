@@ -72,6 +72,19 @@ local function get_current_file_dir()
   return vim.fn.fnamemodify(current_file, ":h")
 end
 
+-- Helper function to sanitize filename for safe filesystem usage
+local function sanitize_filename(filename)
+  -- Replace spaces with underscores
+  local sanitized = filename:gsub(" ", "_")
+  -- Remove or replace special characters
+  sanitized = sanitized:gsub("[^%w_%-]", "_")
+  -- Remove consecutive underscores
+  sanitized = sanitized:gsub("_+", "_")
+  -- Remove leading/trailing underscores
+  sanitized = sanitized:gsub("^_+", ""):gsub("_+$", "")
+  return sanitized
+end
+
 -- Helper function to process image links and copy images
 local function process_images(content, source_dir, target_dir)
   local processed = {}
@@ -139,6 +152,9 @@ function M.process()
   local current_file = vim.fn.expand("%:p")
   local filename = vim.fn.expand("%:t:r")  -- filename without extension
   local source_dir = get_current_file_dir()
+
+  -- Sanitize filename for safe filesystem usage
+  filename = sanitize_filename(filename)
 
   -- Create target directory
   local target_dir = "/tmp/quartofy/" .. filename
