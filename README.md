@@ -126,27 +126,6 @@ When you run the `:Quartofy` command:
 6. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
 7. **Previews**: Launches `quarto preview` to display the presentation
 
-## Example
-
-Given a file `/home/user/presentations/demo.md`:
-
-```markdown
----
-title: Demo
-format: revealjs
----
-
-# Title Slide
-
-![Logo](./assets/logo.png)
-```
-
-Running `:Quartofy` will:
-- Copy to `/tmp/quartofy/demo/demo.md`
-- Convert `./assets/logo.png` to `/home/user/presentations/assets/logo.png`
-- Generate `/tmp/quartofy/demo/demo.qmd`
-- Render and preview the presentation
-
 ## Zotero Citation Processing
 
 If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown.
