@@ -82,6 +82,11 @@ Content here
    :QuartofyStop
    ```
 
+4. For debugging (to see detailed processing information):
+   ```vim
+   :QuartofyDebug
+   ```
+
 ## Controlling the Preview Server
 
 - `:QuartofyStop` - Stop the currently running preview server
@@ -89,6 +94,22 @@ Content here
   - Otherwise, attempts to find and kill the process on the configured port
   - Shows a message confirming the action
 - **Automatic cleanup**: The preview server is automatically stopped when you exit Neovim
+
+## Debugging
+
+If you encounter issues with citation processing or want to see detailed information about what the plugin is doing:
+
+```vim
+:QuartofyDebug
+```
+
+This command runs the same process as `:Quartofy` but with verbose debug output showing:
+- Citation detection and processing steps
+- URL detection and hyperlink creation
+- Line modifications and content transformations
+- File writing operations
+
+Use this when troubleshooting citation conversion issues or reporting bugs.
 
 ## What It Does
 

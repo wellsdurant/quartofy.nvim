@@ -9,6 +9,9 @@ M.config = {
 -- Store the preview job ID
 M.preview_job_id = nil
 
+-- Debug flag (set by QuartofyDebug command)
+M.debug_mode = false
+
 -- Setup function for user configuration
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
@@ -42,6 +45,15 @@ end
 -- Helper function to display message without requiring Enter
 local function echo_msg(msg)
   vim.api.nvim_echo({{msg, "Normal"}}, false, {})
+end
+
+-- Helper function to display debug messages (only in debug mode)
+local function debug_msg(msg, level)
+  if M.debug_mode then
+    vim.schedule(function()
+      vim.notify(msg, level or vim.log.levels.INFO)
+    end)
+  end
 end
 
 -- Helper function to check if file exists
@@ -228,9 +240,7 @@ local function get_zotero_citation(item_id)
   -- Find the reference with matching itemKey
   for _, ref in ipairs(references) do
     if ref.itemKey == item_id then
-      vim.schedule(function()
-        vim.notify("Quartofy: Successfully found citation for ID: " .. item_id, vim.log.levels.INFO)
-      end)
+      debug_msg("Quartofy: Successfully found citation for ID: " .. item_id)
       return ref
     end
   end
@@ -291,24 +301,18 @@ local function process_single_zotero_citation(text, item_id)
   end
 
   -- Debug: Show citation URL
-  vim.schedule(function()
-    if citation.url then
-      vim.notify("Quartofy: Citation URL: " .. citation.url, vim.log.levels.INFO)
-    else
-      vim.notify("Quartofy: Citation has no URL", vim.log.levels.INFO)
-    end
-  end)
+  if citation.url then
+    debug_msg("Quartofy: Citation URL: " .. citation.url)
+  else
+    debug_msg("Quartofy: Citation has no URL")
+  end
 
   -- Check for any valid URL (http:// or https://)
   if citation.url and citation.url:match("^https?://") then
-    vim.schedule(function()
-      vim.notify("Quartofy: Valid URL detected, creating hyperlink", vim.log.levels.INFO)
-    end)
+    debug_msg("Quartofy: Valid URL detected, creating hyperlink")
     return "[" .. ieee_text .. "](" .. citation.url .. ")"
   else
-    vim.schedule(function()
-      vim.notify("Quartofy: No valid URL, using plain text citation", vim.log.levels.INFO)
-    end)
+    debug_msg("Quartofy: No valid URL, using plain text citation")
     return ieee_text
   end
 end
@@ -326,42 +330,30 @@ local function process_zotero_links(content)
     if has_footnote then
       local original_line = modified_line
       modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
-        vim.schedule(function()
-          vim.notify("Quartofy: Found footnote citation - text: '" .. text .. "', ID: " .. item_id, vim.log.levels.INFO)
-        end)
+        debug_msg("Quartofy: Found footnote citation - text: '" .. text .. "', ID: " .. item_id)
 
         local result = process_single_zotero_citation(text, item_id)
         if result then
           local replacement = "^[" .. result .. "]"
-          vim.schedule(function()
-            vim.notify("Quartofy: Successfully processed citation", vim.log.levels.INFO)
-            vim.notify("Quartofy: Replacement text: " .. replacement, vim.log.levels.INFO)
-          end)
+          debug_msg("Quartofy: Successfully processed citation")
+          debug_msg("Quartofy: Replacement text: " .. replacement)
           return replacement
         else
-          vim.schedule(function()
-            vim.notify("Quartofy: Failed to get citation data for ID: " .. item_id, vim.log.levels.WARN)
-          end)
+          debug_msg("Quartofy: Failed to get citation data for ID: " .. item_id, vim.log.levels.WARN)
           -- Keep original if processing failed
           return "^[[" .. text .. "](zotero://select/library/items/" .. item_id .. ")]"
         end
       end)
       if modified_line ~= original_line then
-        vim.schedule(function()
-          vim.notify("Quartofy: Line was modified successfully", vim.log.levels.INFO)
-        end)
+        debug_msg("Quartofy: Line was modified successfully")
       else
-        vim.schedule(function()
-          vim.notify("Quartofy: WARNING - Line was NOT modified!", vim.log.levels.WARN)
-        end)
+        debug_msg("Quartofy: WARNING - Line was NOT modified!", vim.log.levels.WARN)
       end
     else
       -- Only process inline format if there's no footnote on this line
       -- This prevents matching inside footnote structures
       modified_line = modified_line:gsub("%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)", function(text, item_id)
-        vim.schedule(function()
-          vim.notify("Quartofy: Found inline citation - text: '" .. text .. "', ID: " .. item_id, vim.log.levels.INFO)
-        end)
+        debug_msg("Quartofy: Found inline citation - text: '" .. text .. "', ID: " .. item_id)
 
         local result = process_single_zotero_citation(text, item_id)
         if result then
@@ -374,10 +366,8 @@ local function process_zotero_links(content)
     end
 
     if line ~= modified_line then
-      vim.schedule(function()
-        vim.notify("Quartofy: SAVING modified line to processed array", vim.log.levels.INFO)
-        vim.notify("Quartofy: Modified line content: " .. modified_line:sub(1, 100), vim.log.levels.INFO)
-      end)
+      debug_msg("Quartofy: SAVING modified line to processed array")
+      debug_msg("Quartofy: Modified line content: " .. modified_line:sub(1, 100))
     end
     table.insert(processed, modified_line)
   end
@@ -516,10 +506,9 @@ function M.process()
     end
 
     for _, line in ipairs(processed_content) do
-      if line:match("Radford") or line:match("Shazeer") then
-        vim.schedule(function()
-          vim.notify("Quartofy: Writing citation line to .qmd: " .. line:sub(1, 100), vim.log.levels.INFO)
-        end)
+      -- Debug: Show citation lines being written
+      if line:match("%^%[.-%]") then
+        debug_msg("Quartofy: Writing citation line to .qmd: " .. line:sub(1, 100))
       end
       qmd_file:write(line .. "\n")
     end
@@ -598,6 +587,14 @@ function M.process()
     stdout_buffered = true,
     stderr_buffered = true,
   })
+end
+
+-- Function to process with debug mode enabled
+function M.process_debug()
+  M.debug_mode = true
+  echo_msg("Quartofy: Running in DEBUG mode...")
+  M.process()
+  M.debug_mode = false
 end
 
 return M

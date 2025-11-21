@@ -18,6 +18,13 @@ end, {
   desc = "Process markdown file for Quarto revealjs presentation"
 })
 
+-- Command to run with debug output
+vim.api.nvim_create_user_command("QuartofyDebug", function()
+  require("quartofy").process_debug()
+end, {
+  desc = "Process markdown file with verbose debug output"
+})
+
 -- Command to stop the preview server
 vim.api.nvim_create_user_command("QuartofyStop", function()
   require("quartofy").stop_preview()
