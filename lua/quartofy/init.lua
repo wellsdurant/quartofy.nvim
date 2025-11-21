@@ -241,7 +241,8 @@ local function process_zotero_links(content)
     local modified_line = line
 
     -- First, handle footnote format: ^[[text](zotero://select/library/items/ITEMID)]
-    modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)%]%]", function(text, item_id)
+    -- Use a more robust pattern that matches any characters in the item ID and text
+    modified_line = modified_line:gsub("%^%[%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
       local result = process_single_zotero_citation(text, item_id)
       if result then
         return "^[" .. result .. "]"
@@ -252,7 +253,8 @@ local function process_zotero_links(content)
     end)
 
     -- Then, handle inline format: [text](zotero://select/library/items/ITEMID)
-    modified_line = modified_line:gsub("%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)", function(text, item_id)
+    -- This will not match ones inside footnotes since we already processed those
+    modified_line = modified_line:gsub("%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)", function(text, item_id)
       local result = process_single_zotero_citation(text, item_id)
       if result then
         return result
