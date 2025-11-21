@@ -241,12 +241,24 @@ local function process_zotero_links(content)
     local modified_line = line
 
     -- First, handle footnote format: ^[[text](zotero://select/library/items/ITEMID)]
-    -- Use a more robust pattern that matches any characters in the item ID and text
-    modified_line = modified_line:gsub("%^%[%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
+    -- Use non-greedy matching for the text portion
+    local found_footnote = false
+    modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
+      found_footnote = true
+      vim.schedule(function()
+        echo_msg("Quartofy: Found footnote citation - text: " .. text .. ", ID: " .. item_id)
+      end)
+
       local result = process_single_zotero_citation(text, item_id)
       if result then
+        vim.schedule(function()
+          echo_msg("Quartofy: Successfully processed citation")
+        end)
         return "^[" .. result .. "]"
       else
+        vim.schedule(function()
+          echo_msg("Quartofy: Failed to get citation data for ID: " .. item_id)
+        end)
         -- Keep original if processing failed
         return "^[[" .. text .. "](zotero://select/library/items/" .. item_id .. ")]"
       end
@@ -255,6 +267,10 @@ local function process_zotero_links(content)
     -- Then, handle inline format: [text](zotero://select/library/items/ITEMID)
     -- This will not match ones inside footnotes since we already processed those
     modified_line = modified_line:gsub("%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)", function(text, item_id)
+      vim.schedule(function()
+        echo_msg("Quartofy: Found inline citation - text: " .. text .. ", ID: " .. item_id)
+      end)
+
       local result = process_single_zotero_citation(text, item_id)
       if result then
         return result
