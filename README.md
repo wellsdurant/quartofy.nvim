@@ -7,6 +7,7 @@ A Neovim plugin that streamlines the workflow of creating Quarto revealjs presen
 - Automatically detects markdown files with `revealjs` in YAML frontmatter
 - Copies files to a working directory (`/tmp/quartofy/`)
 - Converts relative image paths to absolute paths
+- Processes Zotero citations into IEEE format with arXiv links
 - Renders presentations using Quarto
 - Launches preview automatically
 
@@ -14,6 +15,7 @@ A Neovim plugin that streamlines the workflow of creating Quarto revealjs presen
 
 - Neovim >= 0.7.0
 - [Quarto](https://quarto.org/) installed and available in PATH
+- [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) (optional, for Zotero citation processing)
 
 ## Installation
 
@@ -88,10 +90,11 @@ When you run the `:Quartofy` command:
    - Creates `/tmp/quartofy/[filename]/` directory
    - Copies the file to `/tmp/quartofy/[filename]/[filename].md`
    - Only overwrites if the current file is newer
-3. **Processes images**: Converts relative image paths to absolute paths in the copy
-4. **Generates Quarto file**: Creates `[filename].qmd` with processed content
-5. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
-6. **Previews**: Launches `quarto preview` to display the presentation
+3. **Processes Zotero citations**: Converts Zotero links to IEEE format citations with arXiv links
+4. **Processes images**: Copies images to target directory and updates paths
+5. **Generates Quarto file**: Creates `[filename].qmd` with processed content
+6. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
+7. **Previews**: Launches `quarto preview` to display the presentation
 
 ## Example
 
@@ -113,6 +116,31 @@ Running `:Quartofy` will:
 - Convert `./assets/logo.png` to `/home/user/presentations/assets/logo.png`
 - Generate `/tmp/quartofy/demo/demo.qmd`
 - Render and preview the presentation
+
+## Zotero Citation Processing
+
+If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown:
+
+**Input:**
+```markdown
+[GPT2 (2019)](zotero://select/library/items/KCG86VYD)
+```
+
+**Output (if has arXiv URL):**
+```markdown
+[A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.](https://arxiv.org/abs/1234.5678)
+```
+
+**Output (if no arXiv URL):**
+```markdown
+A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.
+```
+
+The plugin:
+- Converts Zotero links to IEEE citation format
+- Creates hyperlinks to arXiv if the paper has an arXiv URL
+- Falls back to plain text citation if no URL is available
+- Keeps original link if citation data cannot be retrieved
 
 ## Configuration
 

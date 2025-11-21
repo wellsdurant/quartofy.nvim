@@ -114,6 +114,119 @@ local function sanitize_filename(filename)
   return sanitized
 end
 
+-- Helper function to get citation from zotero-md.nvim
+local function get_zotero_citation(item_id)
+  local ok, zotero = pcall(require, "zotero-md")
+  if not ok then
+    return nil
+  end
+
+  -- Get citation data from zotero-md
+  local citation = zotero.get_citation(item_id)
+  if not citation then
+    return nil
+  end
+
+  return citation
+end
+
+-- Helper function to format citation in IEEE style
+local function format_ieee_citation(citation)
+  if not citation then
+    return nil
+  end
+
+  local parts = {}
+
+  -- Authors
+  if citation.authors and #citation.authors > 0 then
+    local author_names = {}
+    for i, author in ipairs(citation.authors) do
+      if i <= 3 then
+        local name = author.lastName or author.name or ""
+        if author.firstName then
+          name = author.firstName:sub(1, 1) .. ". " .. name
+        end
+        table.insert(author_names, name)
+      end
+    end
+    if #citation.authors > 3 then
+      table.insert(author_names, "et al.")
+    end
+    table.insert(parts, table.concat(author_names, ", "))
+  end
+
+  -- Title
+  if citation.title then
+    table.insert(parts, '"' .. citation.title .. '"')
+  end
+
+  -- Publication
+  if citation.publicationTitle then
+    table.insert(parts, "*" .. citation.publicationTitle .. "*")
+  end
+
+  -- Volume/Issue
+  local vol_info = {}
+  if citation.volume then
+    table.insert(vol_info, "vol. " .. citation.volume)
+  end
+  if citation.issue then
+    table.insert(vol_info, "no. " .. citation.issue)
+  end
+  if #vol_info > 0 then
+    table.insert(parts, table.concat(vol_info, ", "))
+  end
+
+  -- Pages
+  if citation.pages then
+    table.insert(parts, "pp. " .. citation.pages)
+  end
+
+  -- Year
+  if citation.date then
+    local year = citation.date:match("(%d%d%d%d)")
+    if year then
+      table.insert(parts, year)
+    end
+  end
+
+  return table.concat(parts, ", ") .. "."
+end
+
+-- Helper function to process Zotero links
+local function process_zotero_links(content)
+  local processed = {}
+
+  for _, line in ipairs(content) do
+    -- Match Zotero link syntax: [text](zotero://select/library/items/ITEMID)
+    local modified_line = line:gsub("%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)", function(text, item_id)
+      local citation = get_zotero_citation(item_id)
+
+      if not citation then
+        -- Keep original if citation not found
+        return "[" .. text .. "](zotero://select/library/items/" .. item_id .. ")"
+      end
+
+      local ieee_text = format_ieee_citation(citation)
+      if not ieee_text then
+        return "[" .. text .. "](zotero://select/library/items/" .. item_id .. ")"
+      end
+
+      -- Check for arXiv URL
+      if citation.url and citation.url:match("arxiv%.org") then
+        return "[" .. ieee_text .. "](" .. citation.url .. ")"
+      else
+        return ieee_text
+      end
+    end)
+
+    table.insert(processed, modified_line)
+  end
+
+  return processed
+end
+
 -- Helper function to process image links and copy images
 local function process_images(content, source_dir, target_dir)
   local processed = {}
@@ -225,6 +338,10 @@ function M.process()
     table.insert(content, line)
   end
   file:close()
+
+  -- Process Zotero citations
+  echo_msg("Quartofy: Processing Zotero citations...")
+  content = process_zotero_links(content)
 
   -- Process image links and copy images
   echo_msg("Quartofy: Processing images...")
