@@ -3,6 +3,7 @@ local M = {}
 -- Default configuration
 M.config = {
   default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
+  preview_port = 4200,        -- Default port for quarto preview
 }
 
 -- Setup function for user configuration
@@ -247,9 +248,10 @@ function M.process()
 
         -- Start preview after successful render
         local preview_cmd = string.format(
-          "cd %s && quarto preview %s >/dev/null 2>&1",
+          "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
           vim.fn.shellescape(target_dir),
-          vim.fn.shellescape(filename .. ".qmd")
+          vim.fn.shellescape(filename .. ".qmd"),
+          M.config.preview_port
         )
 
         vim.fn.jobstart(preview_cmd, {

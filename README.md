@@ -108,8 +108,14 @@ The plugin works out of the box with sensible defaults. To customize, call `setu
 ```lua
 require("quartofy").setup({
   default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
+  preview_port = 4200,        -- Port for quarto preview (default: 4200)
 })
 ```
+
+### Configuration Options
+
+- `default_keybinding` (boolean): Enable/disable the `<Leader>nr` keybinding (default: `true`)
+- `preview_port` (number): Port number for Quarto preview server. Using a consistent port prevents opening multiple browser tabs (default: `4200`)
 
 ### Disabling the Default Keybinding
 
