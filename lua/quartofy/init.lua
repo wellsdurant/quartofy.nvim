@@ -114,6 +114,61 @@ local function sanitize_filename(filename)
   return sanitized
 end
 
+-- Helper function to load Zotero cache if not already loaded
+local function ensure_zotero_cache()
+  local cache_ok, cache = pcall(require, "zotero-md.cache")
+  if not cache_ok or not cache then
+    return false
+  end
+
+  local references = cache.get_references()
+  if references and type(references) == "table" and #references > 0 then
+    -- Cache already populated
+    return true
+  end
+
+  -- Try to load references from database
+  vim.schedule(function()
+    vim.notify("Quartofy: Loading Zotero database...", vim.log.levels.INFO)
+  end)
+
+  local db_ok, database = pcall(require, "zotero-md.database")
+  if not db_ok or not database then
+    return false
+  end
+
+  local config_ok, config = pcall(require, "zotero-md.config")
+  if not config_ok or not config then
+    return false
+  end
+
+  local db_path = config.get("db_path")
+  if not db_path or db_path == "" then
+    vim.schedule(function()
+      vim.notify("Quartofy: Zotero database path not configured", vim.log.levels.WARN)
+    end)
+    return false
+  end
+
+  -- Load references from database
+  local load_ok, refs = pcall(database.load_references, db_path)
+  if not load_ok or not refs or type(refs) ~= "table" then
+    vim.schedule(function()
+      vim.notify("Quartofy: Failed to load references from Zotero database", vim.log.levels.ERROR)
+    end)
+    return false
+  end
+
+  -- Cache the references
+  cache.set_references(refs)
+
+  vim.schedule(function()
+    vim.notify("Quartofy: Loaded " .. #refs .. " references from Zotero database", vim.log.levels.INFO)
+  end)
+
+  return true
+end
+
 -- Helper function to get citation from zotero-md.nvim
 local function get_zotero_citation(item_id)
   -- Try to load zotero-md.nvim
@@ -138,7 +193,7 @@ local function get_zotero_citation(item_id)
   local references = cache.get_references()
   if not references or type(references) ~= "table" then
     vim.schedule(function()
-      vim.notify("Quartofy: No cached references available. Please run :ZoteroPick first to load the database.", vim.log.levels.WARN)
+      vim.notify("Quartofy: No cached references available", vim.log.levels.WARN)
     end)
     return nil
   end
@@ -381,6 +436,9 @@ function M.process()
       table.insert(content, line)
     end
     file:close()
+
+    -- Ensure Zotero cache is loaded before processing citations
+    ensure_zotero_cache()
 
     -- Process Zotero citations
     echo_msg("Quartofy: Processing Zotero citations...")

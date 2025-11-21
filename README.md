@@ -131,8 +131,9 @@ Running `:Quartofy` will:
 If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown.
 
 **Requirements:**
-- Run `:ZoteroPick` at least once to load citations into cache
-- The Zotero item must be in your zotero-md.nvim database
+- zotero-md.nvim must be configured with your Zotero database path
+- The Zotero item must be in your Zotero library
+- Quartofy will automatically load the Zotero database on first use
 
 ### Inline Citations
 
