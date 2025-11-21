@@ -25,6 +25,14 @@ end, {
   desc = "Stop the Quartofy preview server"
 })
 
+-- Automatically stop preview server when Neovim exits
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function()
+    require("quartofy").stop_preview()
+  end,
+  desc = "Stop Quartofy preview server on exit"
+})
+
 -- Default keybinding (can be disabled via setup)
 local function setup_default_keybinding()
   local quartofy = require("quartofy")

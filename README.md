@@ -77,6 +77,7 @@ Content here
   - If tracked by Neovim, stops the job directly
   - Otherwise, attempts to find and kill the process on the configured port
   - Shows a message confirming the action
+- **Automatic cleanup**: The preview server is automatically stopped when you exit Neovim
 
 ## What It Does
 
