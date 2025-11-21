@@ -119,7 +119,11 @@ Running `:Quartofy` will:
 
 ## Zotero Citation Processing
 
-If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown:
+If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown.
+
+**Requirements:**
+- Run `:ZoteroPick` at least once to load citations into cache
+- The Zotero item must be in your zotero-md.nvim database
 
 ### Inline Citations
 
