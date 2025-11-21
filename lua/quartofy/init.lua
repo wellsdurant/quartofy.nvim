@@ -117,13 +117,18 @@ end
 -- Helper function to get citation from zotero-md.nvim
 local function get_zotero_citation(item_id)
   local ok, zotero = pcall(require, "zotero-md")
-  if not ok then
+  if not ok or not zotero then
+    return nil
+  end
+
+  -- Check if the function exists
+  if type(zotero.get_item) ~= "function" then
     return nil
   end
 
   -- Get citation data from zotero-md
-  local citation = zotero.get_citation(item_id)
-  if not citation then
+  local citation_ok, citation = pcall(zotero.get_item, item_id)
+  if not citation_ok or not citation then
     return nil
   end
 
@@ -132,38 +137,45 @@ end
 
 -- Helper function to format citation in IEEE style
 local function format_ieee_citation(citation)
-  if not citation then
+  if not citation or type(citation) ~= "table" then
     return nil
   end
 
   local parts = {}
 
-  -- Authors
-  if citation.authors and #citation.authors > 0 then
+  -- Authors - try different field names
+  local authors = citation.authors or citation.creators or {}
+  if type(authors) == "table" and #authors > 0 then
     local author_names = {}
-    for i, author in ipairs(citation.authors) do
+    for i, author in ipairs(authors) do
       if i <= 3 then
-        local name = author.lastName or author.name or ""
-        if author.firstName then
-          name = author.firstName:sub(1, 1) .. ". " .. name
+        local name = author.lastName or author.family or author.name or ""
+        local first = author.firstName or author.given or ""
+        if first and first ~= "" then
+          name = first:sub(1, 1) .. ". " .. name
         end
-        table.insert(author_names, name)
+        if name ~= "" then
+          table.insert(author_names, name)
+        end
       end
     end
-    if #citation.authors > 3 then
+    if #authors > 3 then
       table.insert(author_names, "et al.")
     end
-    table.insert(parts, table.concat(author_names, ", "))
+    if #author_names > 0 then
+      table.insert(parts, table.concat(author_names, ", "))
+    end
   end
 
   -- Title
-  if citation.title then
+  if citation.title and citation.title ~= "" then
     table.insert(parts, '"' .. citation.title .. '"')
   end
 
   -- Publication
-  if citation.publicationTitle then
-    table.insert(parts, "*" .. citation.publicationTitle .. "*")
+  local pub = citation.publicationTitle or citation.container or citation.containerTitle
+  if pub and pub ~= "" then
+    table.insert(parts, "*" .. pub .. "*")
   end
 
   -- Volume/Issue
@@ -171,8 +183,8 @@ local function format_ieee_citation(citation)
   if citation.volume then
     table.insert(vol_info, "vol. " .. citation.volume)
   end
-  if citation.issue then
-    table.insert(vol_info, "no. " .. citation.issue)
+  if citation.issue or citation.number then
+    table.insert(vol_info, "no. " .. (citation.issue or citation.number))
   end
   if #vol_info > 0 then
     table.insert(parts, table.concat(vol_info, ", "))
@@ -184,11 +196,16 @@ local function format_ieee_citation(citation)
   end
 
   -- Year
-  if citation.date then
-    local year = citation.date:match("(%d%d%d%d)")
-    if year then
-      table.insert(parts, year)
-    end
+  local year = citation.year
+  if not year and citation.date then
+    year = citation.date:match("(%d%d%d%d)")
+  end
+  if year then
+    table.insert(parts, tostring(year))
+  end
+
+  if #parts == 0 then
+    return nil
   end
 
   return table.concat(parts, ", ") .. "."
