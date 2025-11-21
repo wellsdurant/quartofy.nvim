@@ -358,6 +358,12 @@ local function process_zotero_links(content)
       end)
     end
 
+    if line ~= modified_line then
+      vim.schedule(function()
+        vim.notify("Quartofy: SAVING modified line to processed array", vim.log.levels.INFO)
+        vim.notify("Quartofy: Modified line content: " .. modified_line:sub(1, 100), vim.log.levels.INFO)
+      end)
+    end
     table.insert(processed, modified_line)
   end
 
@@ -495,6 +501,11 @@ function M.process()
     end
 
     for _, line in ipairs(processed_content) do
+      if line:match("Radford") or line:match("Shazeer") then
+        vim.schedule(function()
+          vim.notify("Quartofy: Writing citation line to .qmd: " .. line:sub(1, 100), vim.log.levels.INFO)
+        end)
+      end
       qmd_file:write(line .. "\n")
     end
     qmd_file:close()
