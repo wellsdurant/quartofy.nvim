@@ -118,20 +118,39 @@ end
 local function get_zotero_citation(item_id)
   local ok, zotero = pcall(require, "zotero-md")
   if not ok or not zotero then
+    vim.schedule(function()
+      vim.notify("Quartofy: zotero-md.nvim not found or failed to load", vim.log.levels.WARN)
+    end)
     return nil
   end
 
   -- Check if the function exists
   if type(zotero.get_item) ~= "function" then
+    vim.schedule(function()
+      vim.notify("Quartofy: zotero.get_item function not found. Available functions: " .. vim.inspect(vim.tbl_keys(zotero)), vim.log.levels.WARN)
+    end)
     return nil
   end
 
   -- Get citation data from zotero-md
   local citation_ok, citation = pcall(zotero.get_item, item_id)
-  if not citation_ok or not citation then
+  if not citation_ok then
+    vim.schedule(function()
+      vim.notify("Quartofy: Error calling zotero.get_item: " .. tostring(citation), vim.log.levels.ERROR)
+    end)
     return nil
   end
 
+  if not citation then
+    vim.schedule(function()
+      vim.notify("Quartofy: zotero.get_item returned nil for ID: " .. item_id, vim.log.levels.WARN)
+    end)
+    return nil
+  end
+
+  vim.schedule(function()
+    vim.notify("Quartofy: Successfully retrieved citation data", vim.log.levels.INFO)
+  end)
   return citation
 end
 
