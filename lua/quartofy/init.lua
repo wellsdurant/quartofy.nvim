@@ -67,35 +67,45 @@ local function get_current_file_dir()
   return vim.fn.fnamemodify(current_file, ":h")
 end
 
--- Helper function to URL-encode special characters in path
-local function url_encode_path(path)
-  -- Encode spaces and other special characters for markdown/HTML
-  local encoded = path:gsub(" ", "%%20")
-  encoded = encoded:gsub("%(", "%%28")
-  encoded = encoded:gsub("%)", "%%29")
-  return encoded
-end
-
--- Helper function to process image links
-local function process_images(content, source_dir)
+-- Helper function to process image links and copy images
+local function process_images(content, source_dir, target_dir)
   local processed = {}
 
   for _, line in ipairs(content) do
     -- Match markdown image syntax: ![alt](path)
     local modified_line = line:gsub("!%[(.-)%]%((.-)%)", function(alt, path)
-      -- Skip if already absolute path or URL
-      if path:match("^/") or path:match("^https?://") then
+      -- Skip if URL
+      if path:match("^https?://") then
         return "![" .. alt .. "](" .. path .. ")"
       end
 
-      -- Convert relative path to absolute
-      local abs_path = source_dir .. "/" .. path
-      -- Normalize the path
-      abs_path = vim.fn.simplify(abs_path)
-      -- URL-encode special characters (especially spaces)
-      abs_path = url_encode_path(abs_path)
+      -- Handle absolute or relative path
+      local source_path
+      if path:match("^/") then
+        source_path = path
+      else
+        source_path = source_dir .. "/" .. path
+        source_path = vim.fn.simplify(source_path)
+      end
 
-      return "![" .. alt .. "](" .. abs_path .. ")"
+      -- Check if source image exists
+      if not file_exists(source_path) then
+        -- Keep original path if file doesn't exist
+        return "![" .. alt .. "](" .. path .. ")"
+      end
+
+      -- Get filename and copy to target directory
+      local filename = vim.fn.fnamemodify(source_path, ":t")
+      local target_path = target_dir .. "/" .. filename
+
+      -- Copy image file
+      local copy_cmd = string.format("cp %s %s",
+        vim.fn.shellescape(source_path),
+        vim.fn.shellescape(target_path))
+      os.execute(copy_cmd)
+
+      -- Return with just the filename (relative to .qmd file)
+      return "![" .. alt .. "](" .. filename .. ")"
     end)
 
     table.insert(processed, modified_line)
@@ -165,8 +175,8 @@ function M.process()
   end
   file:close()
 
-  -- Process image links
-  local processed_content = process_images(content, source_dir)
+  -- Process image links and copy images
+  local processed_content = process_images(content, source_dir, target_dir)
 
   -- Write processed content to .qmd file
   local qmd_file = io.open(target_qmd, "w")
