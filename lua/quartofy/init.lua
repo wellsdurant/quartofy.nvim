@@ -246,18 +246,18 @@ local function process_zotero_links(content)
     modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
       found_footnote = true
       vim.schedule(function()
-        echo_msg("Quartofy: Found footnote citation - text: " .. text .. ", ID: " .. item_id)
+        vim.notify("Quartofy: Found footnote citation - text: '" .. text .. "', ID: " .. item_id, vim.log.levels.INFO)
       end)
 
       local result = process_single_zotero_citation(text, item_id)
       if result then
         vim.schedule(function()
-          echo_msg("Quartofy: Successfully processed citation")
+          vim.notify("Quartofy: Successfully processed citation", vim.log.levels.INFO)
         end)
         return "^[" .. result .. "]"
       else
         vim.schedule(function()
-          echo_msg("Quartofy: Failed to get citation data for ID: " .. item_id)
+          vim.notify("Quartofy: Failed to get citation data for ID: " .. item_id, vim.log.levels.WARN)
         end)
         -- Keep original if processing failed
         return "^[[" .. text .. "](zotero://select/library/items/" .. item_id .. ")]"
@@ -268,7 +268,7 @@ local function process_zotero_links(content)
     -- This will not match ones inside footnotes since we already processed those
     modified_line = modified_line:gsub("%[([^%]]+)%]%(zotero://select/library/items/([^%)]+)%)", function(text, item_id)
       vim.schedule(function()
-        echo_msg("Quartofy: Found inline citation - text: " .. text .. ", ID: " .. item_id)
+        vim.notify("Quartofy: Found inline citation - text: '" .. text .. "', ID: " .. item_id, vim.log.levels.INFO)
       end)
 
       local result = process_single_zotero_citation(text, item_id)
