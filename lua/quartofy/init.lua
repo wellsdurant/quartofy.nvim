@@ -140,9 +140,7 @@ local function ensure_zotero_cache()
 
   local db_path = config.get("db_path")
   if not db_path or db_path == "" then
-    vim.schedule(function()
-      vim.notify("Quartofy: Zotero database path not configured", vim.log.levels.WARN)
-    end)
+    debug_msg("Quartofy: Zotero database path not configured", vim.log.levels.WARN)
     return false
   end
 
