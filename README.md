@@ -121,6 +121,8 @@ Running `:Quartofy` will:
 
 If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) installed, Quartofy will automatically process Zotero links in your markdown:
 
+### Inline Citations
+
 **Input:**
 ```markdown
 [GPT2 (2019)](zotero://select/library/items/KCG86VYD)
@@ -136,7 +138,25 @@ If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) inst
 A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.
 ```
 
+### Footnote Citations
+
+**Input:**
+```markdown
+OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[[GPT2 (2019)](zotero://select/library/items/KCG86VYD)]
+```
+
+**Output (if has arXiv URL):**
+```markdown
+OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[[A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.](https://arxiv.org/abs/1234.5678)]
+```
+
+**Output (if no arXiv URL):**
+```markdown
+OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.]
+```
+
 The plugin:
+- Supports both inline and footnote citation formats
 - Converts Zotero links to IEEE citation format
 - Creates hyperlinks to arXiv if the paper has an arXiv URL
 - Falls back to plain text citation if no URL is available

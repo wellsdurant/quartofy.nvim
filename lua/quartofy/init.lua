@@ -211,30 +211,54 @@ local function format_ieee_citation(citation)
   return table.concat(parts, ", ") .. "."
 end
 
+-- Helper function to process a single Zotero citation
+local function process_single_zotero_citation(text, item_id)
+  local citation = get_zotero_citation(item_id)
+
+  if not citation then
+    -- Keep original if citation not found
+    return nil
+  end
+
+  local ieee_text = format_ieee_citation(citation)
+  if not ieee_text then
+    return nil
+  end
+
+  -- Check for arXiv URL
+  if citation.url and citation.url:match("arxiv%.org") then
+    return "[" .. ieee_text .. "](" .. citation.url .. ")"
+  else
+    return ieee_text
+  end
+end
+
 -- Helper function to process Zotero links
 local function process_zotero_links(content)
   local processed = {}
 
   for _, line in ipairs(content) do
-    -- Match Zotero link syntax: [text](zotero://select/library/items/ITEMID)
-    local modified_line = line:gsub("%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)", function(text, item_id)
-      local citation = get_zotero_citation(item_id)
+    local modified_line = line
 
-      if not citation then
-        -- Keep original if citation not found
-        return "[" .. text .. "](zotero://select/library/items/" .. item_id .. ")"
-      end
-
-      local ieee_text = format_ieee_citation(citation)
-      if not ieee_text then
-        return "[" .. text .. "](zotero://select/library/items/" .. item_id .. ")"
-      end
-
-      -- Check for arXiv URL
-      if citation.url and citation.url:match("arxiv%.org") then
-        return "[" .. ieee_text .. "](" .. citation.url .. ")"
+    -- First, handle footnote format: ^[[text](zotero://select/library/items/ITEMID)]
+    modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)%]%]", function(text, item_id)
+      local result = process_single_zotero_citation(text, item_id)
+      if result then
+        return "^[" .. result .. "]"
       else
-        return ieee_text
+        -- Keep original if processing failed
+        return "^[[" .. text .. "](zotero://select/library/items/" .. item_id .. ")]"
+      end
+    end)
+
+    -- Then, handle inline format: [text](zotero://select/library/items/ITEMID)
+    modified_line = modified_line:gsub("%[(.-)%]%(zotero://select/library/items/([%w%d]+)%)", function(text, item_id)
+      local result = process_single_zotero_citation(text, item_id)
+      if result then
+        return result
+      else
+        -- Keep original if processing failed
+        return "[" .. text .. "](zotero://select/library/items/" .. item_id .. ")"
       end
     end)
 
