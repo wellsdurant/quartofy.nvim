@@ -207,8 +207,22 @@ function M.process()
     vim.fn.shellescape(filename .. ".qmd")
   )
 
+  -- Capture output for error reporting
+  local stdout_data = {}
+  local stderr_data = {}
+
   -- Run render synchronously
   local render_job = vim.fn.jobstart(render_cmd, {
+    on_stdout = function(_, data)
+      if data then
+        vim.list_extend(stdout_data, data)
+      end
+    end,
+    on_stderr = function(_, data)
+      if data then
+        vim.list_extend(stderr_data, data)
+      end
+    end,
     on_exit = function(_, exit_code)
       if exit_code == 0 then
         vim.schedule(function()
@@ -227,7 +241,12 @@ function M.process()
         })
       else
         vim.schedule(function()
-          vim.notify("Quartofy: Render failed", vim.log.levels.ERROR)
+          -- Display error details
+          local error_msg = "Quartofy: Render failed\n"
+          if #stderr_data > 0 then
+            error_msg = error_msg .. "Error: " .. table.concat(stderr_data, "\n")
+          end
+          vim.notify(error_msg, vim.log.levels.ERROR)
         end)
       end
     end,
