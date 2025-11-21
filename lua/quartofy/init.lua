@@ -10,6 +10,11 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 end
 
+-- Helper function to print message without requiring Enter
+local function echo_msg(msg, hl)
+  vim.api.nvim_echo({{msg, hl or "None"}}, false, {})
+end
+
 -- Helper function to check if file exists
 local function file_exists(path)
   local f = io.open(path, "r")
@@ -146,13 +151,13 @@ function M.process()
 
   -- Copy file if needed
   if should_copy then
-    vim.notify("Copying file to " .. target_md, vim.log.levels.INFO)
+    echo_msg("Quartofy: Copying file to " .. target_md, "Comment")
     local copy_cmd = string.format("cp %s %s",
       vim.fn.shellescape(current_file),
       vim.fn.shellescape(target_md))
     os.execute(copy_cmd)
   else
-    vim.notify("Using existing file (not older)", vim.log.levels.INFO)
+    echo_msg("Quartofy: Using existing file", "Comment")
   end
 
   -- Read the markdown file
@@ -169,7 +174,7 @@ function M.process()
   file:close()
 
   -- Process image links
-  vim.notify("Processing image links...", vim.log.levels.INFO)
+  echo_msg("Quartofy: Processing image links...", "Comment")
   local processed_content = process_images(content, source_dir)
 
   -- Write processed content to .qmd file
@@ -184,10 +189,10 @@ function M.process()
   end
   qmd_file:close()
 
-  vim.notify("Generated " .. target_qmd, vim.log.levels.INFO)
+  echo_msg("Quartofy: Generated " .. target_qmd, "Comment")
 
   -- Render with Quarto
-  vim.notify("Rendering with Quarto...", vim.log.levels.INFO)
+  echo_msg("Quartofy: Rendering with Quarto...", "Comment")
   local render_cmd = string.format(
     "cd %s && quarto render %s --to revealjs",
     vim.fn.shellescape(target_dir),
@@ -200,7 +205,7 @@ function M.process()
     return
   end
 
-  vim.notify("Render complete!", vim.log.levels.INFO)
+  echo_msg("Quartofy: Render complete!", "String")
 
   -- Prompt user to press Enter before starting preview
   vim.ui.input({ prompt = "Press Enter to start preview: " }, function(input)
@@ -212,7 +217,7 @@ function M.process()
         vim.fn.shellescape(filename .. ".qmd")
       )
 
-      vim.notify("Starting preview...", vim.log.levels.INFO)
+      echo_msg("Quartofy: Starting preview...", "String")
 
       -- Run preview in background
       vim.fn.jobstart(preview_cmd, {
@@ -220,7 +225,7 @@ function M.process()
           if data then
             for _, line in ipairs(data) do
               if line ~= "" then
-                vim.notify(line, vim.log.levels.INFO)
+                echo_msg("Quarto: " .. line, "Comment")
               end
             end
           end
@@ -229,7 +234,7 @@ function M.process()
           if data then
             for _, line in ipairs(data) do
               if line ~= "" then
-                vim.notify(line, vim.log.levels.WARN)
+                echo_msg("Quarto: " .. line, "WarningMsg")
               end
             end
           end
