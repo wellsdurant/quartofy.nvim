@@ -180,9 +180,9 @@ function M.process()
   end
   qmd_file:close()
 
-  -- Render with Quarto
+  -- Render with Quarto (suppress output)
   local render_cmd = string.format(
-    "cd %s && quarto render %s --to revealjs",
+    "cd %s && quarto render %s --to revealjs >/dev/null 2>&1",
     vim.fn.shellescape(target_dir),
     vim.fn.shellescape(filename .. ".qmd")
   )
@@ -193,9 +193,9 @@ function M.process()
     return
   end
 
-  -- Preview with Quarto (async)
+  -- Preview with Quarto (async, suppress output)
   local preview_cmd = string.format(
-    "cd %s && quarto preview %s",
+    "cd %s && quarto preview %s >/dev/null 2>&1",
     vim.fn.shellescape(target_dir),
     vim.fn.shellescape(filename .. ".qmd")
   )
@@ -203,6 +203,8 @@ function M.process()
   -- Run preview in background
   vim.fn.jobstart(preview_cmd, {
     detach = true,
+    on_stdout = function() end,
+    on_stderr = function() end,
   })
 end
 
