@@ -10,6 +10,11 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 end
 
+-- Helper function to display message without requiring Enter
+local function echo_msg(msg)
+  vim.api.nvim_echo({{msg, "Normal"}}, false, {})
+end
+
 -- Helper function to check if file exists
 local function file_exists(path)
   local f = io.open(path, "r")
@@ -156,6 +161,7 @@ function M.process()
 
   -- Copy file if needed
   if should_copy then
+    echo_msg("Quartofy: Copying markdown file...")
     local copy_cmd = string.format("cp %s %s",
       vim.fn.shellescape(current_file),
       vim.fn.shellescape(target_md))
@@ -176,6 +182,7 @@ function M.process()
   file:close()
 
   -- Process image links and copy images
+  echo_msg("Quartofy: Processing images...")
   local processed_content = process_images(content, source_dir, target_dir)
 
   -- Write processed content to .qmd file
@@ -190,7 +197,10 @@ function M.process()
   end
   qmd_file:close()
 
+  echo_msg("Quartofy: Generating .qmd file complete")
+
   -- Render with Quarto using jobstart for better integration
+  echo_msg("Quartofy: Rendering with Quarto...")
   local render_cmd = string.format(
     "cd %s && quarto render %s --to revealjs",
     vim.fn.shellescape(target_dir),
@@ -201,6 +211,10 @@ function M.process()
   local render_job = vim.fn.jobstart(render_cmd, {
     on_exit = function(_, exit_code)
       if exit_code == 0 then
+        vim.schedule(function()
+          echo_msg("Quartofy: Render complete! Starting preview...")
+        end)
+
         -- Start preview after successful render
         local preview_cmd = string.format(
           "cd %s && quarto preview %s >/dev/null 2>&1",
@@ -213,7 +227,7 @@ function M.process()
         })
       else
         vim.schedule(function()
-          vim.notify("Quarto render failed", vim.log.levels.ERROR)
+          vim.notify("Quartofy: Render failed", vim.log.levels.ERROR)
         end)
       end
     end,
