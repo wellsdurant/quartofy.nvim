@@ -10,11 +10,6 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 end
 
--- Helper function to print message without requiring Enter
-local function echo_msg(msg, hl)
-  vim.api.nvim_echo({{msg, hl or "None"}}, false, {})
-end
-
 -- Helper function to check if file exists
 local function file_exists(path)
   local f = io.open(path, "r")
@@ -151,13 +146,10 @@ function M.process()
 
   -- Copy file if needed
   if should_copy then
-    echo_msg("Quartofy: Copying file to " .. target_md, "Comment")
     local copy_cmd = string.format("cp %s %s",
       vim.fn.shellescape(current_file),
       vim.fn.shellescape(target_md))
     os.execute(copy_cmd)
-  else
-    echo_msg("Quartofy: Using existing file", "Comment")
   end
 
   -- Read the markdown file
@@ -174,7 +166,6 @@ function M.process()
   file:close()
 
   -- Process image links
-  echo_msg("Quartofy: Processing image links...", "Comment")
   local processed_content = process_images(content, source_dir)
 
   -- Write processed content to .qmd file
@@ -189,10 +180,7 @@ function M.process()
   end
   qmd_file:close()
 
-  echo_msg("Quartofy: Generated " .. target_qmd, "Comment")
-
   -- Render with Quarto
-  echo_msg("Quartofy: Rendering with Quarto...", "Comment")
   local render_cmd = string.format(
     "cd %s && quarto render %s --to revealjs",
     vim.fn.shellescape(target_dir),
@@ -205,43 +193,15 @@ function M.process()
     return
   end
 
-  echo_msg("Quartofy: Render complete!", "String")
+  -- Preview with Quarto (async)
+  local preview_cmd = string.format(
+    "cd %s && quarto preview %s",
+    vim.fn.shellescape(target_dir),
+    vim.fn.shellescape(filename .. ".qmd")
+  )
 
-  -- Prompt user to press Enter before starting preview
-  vim.ui.input({ prompt = "Press Enter to start preview: " }, function(input)
-    if input ~= nil then
-      -- Preview with Quarto (async)
-      local preview_cmd = string.format(
-        "cd %s && quarto preview %s",
-        vim.fn.shellescape(target_dir),
-        vim.fn.shellescape(filename .. ".qmd")
-      )
-
-      echo_msg("Quartofy: Starting preview...", "String")
-
-      -- Run preview in background
-      vim.fn.jobstart(preview_cmd, {
-        on_stdout = function(_, data)
-          if data then
-            for _, line in ipairs(data) do
-              if line ~= "" then
-                echo_msg("Quarto: " .. line, "Comment")
-              end
-            end
-          end
-        end,
-        on_stderr = function(_, data)
-          if data then
-            for _, line in ipairs(data) do
-              if line ~= "" then
-                echo_msg("Quarto: " .. line, "WarningMsg")
-              end
-            end
-          end
-        end,
-      })
-    end
-  end)
+  -- Run preview in background
+  vim.fn.jobstart(preview_cmd, {})
 end
 
 return M
