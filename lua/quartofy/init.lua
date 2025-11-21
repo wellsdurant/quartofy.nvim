@@ -116,6 +116,7 @@ end
 
 -- Helper function to get citation from zotero-md.nvim
 local function get_zotero_citation(item_id)
+  -- Try to load zotero-md.nvim
   local ok, zotero = pcall(require, "zotero-md")
   if not ok or not zotero then
     vim.schedule(function()
@@ -124,29 +125,36 @@ local function get_zotero_citation(item_id)
     return nil
   end
 
-  -- Try to access the internal database/API
-  -- zotero-md.nvim may store data differently, try accessing the db module
-  local db_ok, db = pcall(require, "zotero-md.db")
-  if db_ok and db and type(db.get_item) == "function" then
-    local citation_ok, citation = pcall(db.get_item, item_id)
-    if citation_ok and citation then
+  -- Try to access the cache module
+  local cache_ok, cache = pcall(require, "zotero-md.cache")
+  if not cache_ok or not cache then
+    vim.schedule(function()
+      vim.notify("Quartofy: zotero-md.cache module not found", vim.log.levels.WARN)
+    end)
+    return nil
+  end
+
+  -- Get cached references
+  local references = cache.get_references()
+  if not references or type(references) ~= "table" then
+    vim.schedule(function()
+      vim.notify("Quartofy: No cached references available. Please run :ZoteroPick first to load the database.", vim.log.levels.WARN)
+    end)
+    return nil
+  end
+
+  -- Find the reference with matching itemKey
+  for _, ref in ipairs(references) do
+    if ref.itemKey == item_id then
       vim.schedule(function()
-        vim.notify("Quartofy: Successfully retrieved citation data via db.get_item", vim.log.levels.INFO)
+        vim.notify("Quartofy: Successfully found citation for ID: " .. item_id, vim.log.levels.INFO)
       end)
-      return citation
+      return ref
     end
   end
 
-  -- Try accessing items table directly
-  if db and db.items and db.items[item_id] then
-    vim.schedule(function()
-      vim.notify("Quartofy: Successfully retrieved citation data via db.items", vim.log.levels.INFO)
-    end)
-    return db.items[item_id]
-  end
-
   vim.schedule(function()
-    vim.notify("Quartofy: Could not retrieve citation for ID: " .. item_id .. ". zotero-md.nvim may use a different API or the item may not be in the database.", vim.log.levels.WARN)
+    vim.notify("Quartofy: Citation not found for ID: " .. item_id .. ". Item may not be in the cached database.", vim.log.levels.WARN)
   end)
   return nil
 end
@@ -159,28 +167,9 @@ local function format_ieee_citation(citation)
 
   local parts = {}
 
-  -- Authors - try different field names
-  local authors = citation.authors or citation.creators or {}
-  if type(authors) == "table" and #authors > 0 then
-    local author_names = {}
-    for i, author in ipairs(authors) do
-      if i <= 3 then
-        local name = author.lastName or author.family or author.name or ""
-        local first = author.firstName or author.given or ""
-        if first and first ~= "" then
-          name = first:sub(1, 1) .. ". " .. name
-        end
-        if name ~= "" then
-          table.insert(author_names, name)
-        end
-      end
-    end
-    if #authors > 3 then
-      table.insert(author_names, "et al.")
-    end
-    if #author_names > 0 then
-      table.insert(parts, table.concat(author_names, ", "))
-    end
+  -- Authors - zotero-md.nvim provides authors as a formatted string
+  if citation.authors and citation.authors ~= "" then
+    table.insert(parts, citation.authors)
   end
 
   -- Title
@@ -189,35 +178,13 @@ local function format_ieee_citation(citation)
   end
 
   -- Publication
-  local pub = citation.publicationTitle or citation.container or citation.containerTitle
-  if pub and pub ~= "" then
-    table.insert(parts, "*" .. pub .. "*")
-  end
-
-  -- Volume/Issue
-  local vol_info = {}
-  if citation.volume then
-    table.insert(vol_info, "vol. " .. citation.volume)
-  end
-  if citation.issue or citation.number then
-    table.insert(vol_info, "no. " .. (citation.issue or citation.number))
-  end
-  if #vol_info > 0 then
-    table.insert(parts, table.concat(vol_info, ", "))
-  end
-
-  -- Pages
-  if citation.pages then
-    table.insert(parts, "pp. " .. citation.pages)
+  if citation.publication and citation.publication ~= "" then
+    table.insert(parts, "*" .. citation.publication .. "*")
   end
 
   -- Year
-  local year = citation.year
-  if not year and citation.date then
-    year = citation.date:match("(%d%d%d%d)")
-  end
-  if year then
-    table.insert(parts, tostring(year))
+  if citation.year and citation.year ~= "" then
+    table.insert(parts, tostring(citation.year))
   end
 
   if #parts == 0 then
