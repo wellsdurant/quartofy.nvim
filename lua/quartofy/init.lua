@@ -257,7 +257,17 @@ function M.process()
 
         vim.fn.jobstart(preview_cmd, {
           detach = true,
+          on_exit = function()
+            vim.schedule(function()
+              echo_msg("Quartofy: Preview stopped")
+            end)
+          end,
         })
+
+        -- Notify user that command is done
+        vim.defer_fn(function()
+          echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port)
+        end, 1000)
       else
         vim.schedule(function()
           -- Display error details
