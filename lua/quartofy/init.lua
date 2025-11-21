@@ -67,6 +67,15 @@ local function get_current_file_dir()
   return vim.fn.fnamemodify(current_file, ":h")
 end
 
+-- Helper function to URL-encode special characters in path
+local function url_encode_path(path)
+  -- Encode spaces and other special characters for markdown/HTML
+  local encoded = path:gsub(" ", "%%20")
+  encoded = encoded:gsub("%(", "%%28")
+  encoded = encoded:gsub("%)", "%%29")
+  return encoded
+end
+
 -- Helper function to process image links
 local function process_images(content, source_dir)
   local processed = {}
@@ -83,6 +92,8 @@ local function process_images(content, source_dir)
       local abs_path = source_dir .. "/" .. path
       -- Normalize the path
       abs_path = vim.fn.simplify(abs_path)
+      -- URL-encode special characters (especially spaces)
+      abs_path = url_encode_path(abs_path)
 
       return "![" .. alt .. "](" .. abs_path .. ")"
     end)
