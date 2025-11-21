@@ -360,49 +360,52 @@ function M.process()
   -- Create directory if it doesn't exist
   vim.fn.mkdir(target_dir, "p")
 
-  -- Copy file if needed
+  -- Only process file if it has been updated
   if should_copy then
+    -- Copy file
     echo_msg("Quartofy: Copying markdown file...")
     local copy_cmd = string.format("cp %s %s",
       vim.fn.shellescape(current_file),
       vim.fn.shellescape(target_md))
     os.execute(copy_cmd)
+
+    -- Read the markdown file
+    local file = io.open(target_md, "r")
+    if not file then
+      vim.notify("Failed to read " .. target_md, vim.log.levels.ERROR)
+      return
+    end
+
+    local content = {}
+    for line in file:lines() do
+      table.insert(content, line)
+    end
+    file:close()
+
+    -- Process Zotero citations
+    echo_msg("Quartofy: Processing Zotero citations...")
+    content = process_zotero_links(content)
+
+    -- Process image links and copy images
+    echo_msg("Quartofy: Processing images...")
+    local processed_content = process_images(content, source_dir, target_dir)
+
+    -- Write processed content to .qmd file
+    local qmd_file = io.open(target_qmd, "w")
+    if not qmd_file then
+      vim.notify("Failed to create " .. target_qmd, vim.log.levels.ERROR)
+      return
+    end
+
+    for _, line in ipairs(processed_content) do
+      qmd_file:write(line .. "\n")
+    end
+    qmd_file:close()
+
+    echo_msg("Quartofy: Generating .qmd file complete")
+  else
+    echo_msg("Quartofy: Markdown file not updated, using existing .qmd")
   end
-
-  -- Read the markdown file
-  local file = io.open(target_md, "r")
-  if not file then
-    vim.notify("Failed to read " .. target_md, vim.log.levels.ERROR)
-    return
-  end
-
-  local content = {}
-  for line in file:lines() do
-    table.insert(content, line)
-  end
-  file:close()
-
-  -- Process Zotero citations
-  echo_msg("Quartofy: Processing Zotero citations...")
-  content = process_zotero_links(content)
-
-  -- Process image links and copy images
-  echo_msg("Quartofy: Processing images...")
-  local processed_content = process_images(content, source_dir, target_dir)
-
-  -- Write processed content to .qmd file
-  local qmd_file = io.open(target_qmd, "w")
-  if not qmd_file then
-    vim.notify("Failed to create " .. target_qmd, vim.log.levels.ERROR)
-    return
-  end
-
-  for _, line in ipairs(processed_content) do
-    qmd_file:write(line .. "\n")
-  end
-  qmd_file:close()
-
-  echo_msg("Quartofy: Generating .qmd file complete")
 
   -- Render with Quarto using jobstart for better integration
   echo_msg("Quartofy: Rendering with Quarto...")
