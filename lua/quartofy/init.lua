@@ -219,9 +219,10 @@ function M.process()
   -- Render with Quarto using jobstart for better integration
   echo_msg("Quartofy: Rendering with Quarto...")
   local render_cmd = string.format(
-    "cd %s && quarto render %s --to revealjs",
+    "cd %s && quarto render %s --to revealjs --execute-dir %s",
     vim.fn.shellescape(target_dir),
-    vim.fn.shellescape(filename .. ".qmd")
+    vim.fn.shellescape(target_qmd),
+    vim.fn.shellescape(target_dir)
   )
 
   -- Capture output for error reporting
@@ -250,7 +251,7 @@ function M.process()
         local preview_cmd = string.format(
           "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
           vim.fn.shellescape(target_dir),
-          vim.fn.shellescape(filename .. ".qmd"),
+          vim.fn.shellescape(target_qmd),
           M.config.preview_port
         )
 
