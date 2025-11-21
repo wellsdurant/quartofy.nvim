@@ -228,8 +228,8 @@ function M.process()
   local stdout_data = {}
   local stderr_data = {}
 
-  -- Run render synchronously
-  local render_job = vim.fn.jobstart(render_cmd, {
+  -- Run render asynchronously (non-blocking)
+  vim.fn.jobstart(render_cmd, {
     on_stdout = function(_, data)
       if data then
         vim.list_extend(stdout_data, data)
@@ -271,9 +271,6 @@ function M.process()
     stdout_buffered = true,
     stderr_buffered = true,
   })
-
-  -- Wait for render to complete
-  vim.fn.jobwait({render_job}, -1)
 end
 
 return M
