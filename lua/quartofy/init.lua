@@ -299,15 +299,15 @@ local function process_single_zotero_citation(text, item_id)
     end
   end)
 
-  -- Check for arXiv URL
-  if citation.url and citation.url:match("arxiv%.org") then
+  -- Check for any valid URL (http:// or https://)
+  if citation.url and citation.url:match("^https?://") then
     vim.schedule(function()
-      vim.notify("Quartofy: ArXiv URL detected, creating hyperlink", vim.log.levels.INFO)
+      vim.notify("Quartofy: Valid URL detected, creating hyperlink", vim.log.levels.INFO)
     end)
     return "[" .. ieee_text .. "](" .. citation.url .. ")"
   else
     vim.schedule(function()
-      vim.notify("Quartofy: No arXiv URL, using plain text citation", vim.log.levels.INFO)
+      vim.notify("Quartofy: No valid URL, using plain text citation", vim.log.levels.INFO)
     end)
     return ieee_text
   end

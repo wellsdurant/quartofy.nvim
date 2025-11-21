@@ -7,7 +7,7 @@ A Neovim plugin that streamlines the workflow of creating Quarto revealjs presen
 - Automatically detects markdown files with `revealjs` in YAML frontmatter
 - Copies files to a working directory (`/tmp/quartofy/`)
 - Converts relative image paths to absolute paths
-- Processes Zotero citations into IEEE format with arXiv links
+- Processes Zotero citations into IEEE format with hyperlinks
 - Renders presentations using Quarto
 - Launches preview automatically
 
@@ -99,7 +99,7 @@ When you run the `:Quartofy` command:
    - Creates `/tmp/quartofy/[filename]/` directory
    - Copies the file to `/tmp/quartofy/[filename]/[filename].md`
    - Only overwrites if the current file is newer
-3. **Processes Zotero citations**: Converts Zotero links to IEEE format citations with arXiv links
+3. **Processes Zotero citations**: Converts Zotero links to IEEE format citations with hyperlinks
 4. **Processes images**: Copies images to target directory and updates paths
 5. **Generates Quarto file**: Creates `[filename].qmd` with processed content
 6. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
@@ -142,12 +142,12 @@ If you have [zotero-md.nvim](https://github.com/wellsdurant/zotero-md.nvim) inst
 [GPT2 (2019)](zotero://select/library/items/KCG86VYD)
 ```
 
-**Output (if has arXiv URL):**
+**Output (if has URL):**
 ```markdown
 [A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.](https://arxiv.org/abs/1234.5678)
 ```
 
-**Output (if no arXiv URL):**
+**Output (if no URL):**
 ```markdown
 A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.
 ```
@@ -159,12 +159,12 @@ A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask
 OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[[GPT2 (2019)](zotero://select/library/items/KCG86VYD)]
 ```
 
-**Output (if has arXiv URL):**
+**Output (if has URL):**
 ```markdown
 OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[[A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.](https://arxiv.org/abs/1234.5678)]
 ```
 
-**Output (if no arXiv URL):**
+**Output (if no URL):**
 ```markdown
 OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[A. Radford, J. Wu, R. Child, et al., "Language Models are Unsupervised Multitask Learners", 2019.]
 ```
@@ -172,7 +172,7 @@ OpenAI's GPT-2 (1.5B): fluent text, first signs of zero-shot, staged release ^[A
 The plugin:
 - Supports both inline and footnote citation formats
 - Converts Zotero links to IEEE citation format
-- Creates hyperlinks to arXiv if the paper has an arXiv URL
+- Creates hyperlinks if the citation has a valid URL (http:// or https://)
 - Falls back to plain text citation if no URL is available
 - Keeps original link if citation data cannot be retrieved
 
