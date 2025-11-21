@@ -189,36 +189,43 @@ function M.process()
     return
   end
 
-  vim.notify("Render complete! Starting preview...", vim.log.levels.INFO)
+  vim.notify("Render complete!", vim.log.levels.INFO)
 
-  -- Preview with Quarto (async)
-  local preview_cmd = string.format(
-    "cd %s && quarto preview %s",
-    vim.fn.shellescape(target_dir),
-    vim.fn.shellescape(filename .. ".qmd")
-  )
+  -- Prompt user to press Enter before starting preview
+  vim.ui.input({ prompt = "Press Enter to start preview: " }, function(input)
+    if input ~= nil then
+      -- Preview with Quarto (async)
+      local preview_cmd = string.format(
+        "cd %s && quarto preview %s",
+        vim.fn.shellescape(target_dir),
+        vim.fn.shellescape(filename .. ".qmd")
+      )
 
-  -- Run preview in background
-  vim.fn.jobstart(preview_cmd, {
-    on_stdout = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line ~= "" then
-            vim.notify(line, vim.log.levels.INFO)
+      vim.notify("Starting preview...", vim.log.levels.INFO)
+
+      -- Run preview in background
+      vim.fn.jobstart(preview_cmd, {
+        on_stdout = function(_, data)
+          if data then
+            for _, line in ipairs(data) do
+              if line ~= "" then
+                vim.notify(line, vim.log.levels.INFO)
+              end
+            end
           end
-        end
-      end
-    end,
-    on_stderr = function(_, data)
-      if data then
-        for _, line in ipairs(data) do
-          if line ~= "" then
-            vim.notify(line, vim.log.levels.WARN)
+        end,
+        on_stderr = function(_, data)
+          if data then
+            for _, line in ipairs(data) do
+              if line ~= "" then
+                vim.notify(line, vim.log.levels.WARN)
+              end
+            end
           end
-        end
-      end
-    end,
-  })
+        end,
+      })
+    end
+  end)
 end
 
 return M
