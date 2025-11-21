@@ -201,7 +201,9 @@ function M.process()
   )
 
   -- Run preview in background
-  vim.fn.jobstart(preview_cmd, {})
+  vim.fn.jobstart(preview_cmd, {
+    detach = true,
+  })
 end
 
 return M
