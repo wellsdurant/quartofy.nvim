@@ -309,6 +309,7 @@ local function process_zotero_links(content)
     -- First, handle footnote format: ^[[text](zotero://select/library/items/ITEMID)]
     -- Use non-greedy matching for the text portion
     if has_footnote then
+      local original_line = modified_line
       modified_line = modified_line:gsub("%^%[%[(.-)%]%(zotero://select/library/items/([^%)]+)%)%]", function(text, item_id)
         vim.schedule(function()
           vim.notify("Quartofy: Found footnote citation - text: '" .. text .. "', ID: " .. item_id, vim.log.levels.INFO)
@@ -316,10 +317,12 @@ local function process_zotero_links(content)
 
         local result = process_single_zotero_citation(text, item_id)
         if result then
+          local replacement = "^[" .. result .. "]"
           vim.schedule(function()
             vim.notify("Quartofy: Successfully processed citation", vim.log.levels.INFO)
+            vim.notify("Quartofy: Replacement text: " .. replacement, vim.log.levels.INFO)
           end)
-          return "^[" .. result .. "]"
+          return replacement
         else
           vim.schedule(function()
             vim.notify("Quartofy: Failed to get citation data for ID: " .. item_id, vim.log.levels.WARN)
@@ -328,6 +331,15 @@ local function process_zotero_links(content)
           return "^[[" .. text .. "](zotero://select/library/items/" .. item_id .. ")]"
         end
       end)
+      if modified_line ~= original_line then
+        vim.schedule(function()
+          vim.notify("Quartofy: Line was modified successfully", vim.log.levels.INFO)
+        end)
+      else
+        vim.schedule(function()
+          vim.notify("Quartofy: WARNING - Line was NOT modified!", vim.log.levels.WARN)
+        end)
+      end
     else
       -- Only process inline format if there's no footnote on this line
       -- This prevents matching inside footnote structures
