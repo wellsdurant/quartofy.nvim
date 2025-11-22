@@ -56,6 +56,21 @@ local function debug_msg(msg, level)
   end
 end
 
+-- Helper function to kill any process using the specified port
+local function kill_port(port)
+  local kill_cmd = string.format("lsof -ti:%d | xargs kill -9 2>/dev/null", port)
+  local result = vim.fn.system(kill_cmd)
+  local exit_code = vim.v.shell_error
+
+  if exit_code == 0 then
+    debug_msg("Quartofy: Killed existing process on port " .. port)
+    return true
+  else
+    debug_msg("Quartofy: No process found on port " .. port)
+    return false
+  end
+end
+
 -- Helper function to check if file exists
 local function file_exists(path)
   local f = io.open(path, "r")
@@ -546,31 +561,37 @@ function M.process()
       if exit_code == 0 then
         vim.schedule(function()
           echo_msg("Quartofy: Render complete! Starting preview...")
+
+          -- Kill any existing process on the port before starting preview
+          kill_port(M.config.preview_port)
+
+          -- Small delay to ensure port is freed
+          vim.defer_fn(function()
+            -- Start preview after successful render
+            local preview_cmd = string.format(
+              "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
+              vim.fn.shellescape(target_dir),
+              vim.fn.shellescape(target_qmd),
+              M.config.preview_port
+            )
+
+            -- Store the preview job ID for later control
+            M.preview_job_id = vim.fn.jobstart(preview_cmd, {
+              detach = true,
+              on_exit = function()
+                M.preview_job_id = nil
+                vim.schedule(function()
+                  echo_msg("Quartofy: Preview stopped")
+                end)
+              end,
+            })
+
+            -- Notify user that command is done
+            vim.defer_fn(function()
+              echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (use :QuartofyStop to stop)")
+            end, 1000)
+          end, 100)
         end)
-
-        -- Start preview after successful render
-        local preview_cmd = string.format(
-          "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
-          vim.fn.shellescape(target_dir),
-          vim.fn.shellescape(target_qmd),
-          M.config.preview_port
-        )
-
-        -- Store the preview job ID for later control
-        M.preview_job_id = vim.fn.jobstart(preview_cmd, {
-          detach = true,
-          on_exit = function()
-            M.preview_job_id = nil
-            vim.schedule(function()
-              echo_msg("Quartofy: Preview stopped")
-            end)
-          end,
-        })
-
-        -- Notify user that command is done
-        vim.defer_fn(function()
-          echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (use :QuartofyStop to stop)")
-        end, 1000)
       else
         vim.schedule(function()
           -- Display error details
