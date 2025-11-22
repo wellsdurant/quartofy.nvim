@@ -206,7 +206,7 @@ end
 
 -- Helper function to create symlinks for template files
 local function setup_template_symlinks(template_dir, target_dir)
-  -- Create symlink for _extensions directory
+  -- Create symlinks for contents inside _extensions directory
   local template_extensions = template_dir .. "/_extensions"
   local target_extensions = target_dir .. "/_extensions"
 
@@ -218,30 +218,50 @@ local function setup_template_symlinks(template_dir, target_dir)
     return false
   end
 
-  -- Remove existing symlink or directory if it exists
+  -- Remove existing _extensions directory if it exists
   if vim.fn.isdirectory(target_extensions) == 1 or vim.fn.filereadable(target_extensions) == 1 then
     local rm_cmd = string.format("rm -rf %s", vim.fn.shellescape(target_extensions))
     os.execute(rm_cmd)
   end
 
-  -- Create symlink
-  local ln_cmd = string.format(
-    "ln -s %s %s",
-    vim.fn.shellescape(template_extensions),
-    vim.fn.shellescape(target_extensions)
-  )
+  -- Create _extensions directory in target
+  vim.fn.mkdir(target_extensions, "p")
 
-  local result = vim.fn.system(ln_cmd)
-  local exit_code = vim.v.shell_error
+  -- Get list of items in template _extensions directory
+  local ls_cmd = string.format("ls -A %s", vim.fn.shellescape(template_extensions))
+  local items = vim.fn.system(ls_cmd)
 
-  if exit_code ~= 0 then
+  if vim.v.shell_error ~= 0 then
     vim.schedule(function()
-      vim.notify("Quartofy: Failed to create symlink: " .. result, vim.log.levels.ERROR)
+      vim.notify("Quartofy: Failed to list template _extensions directory", vim.log.levels.ERROR)
     end)
     return false
   end
 
-  debug_msg("Quartofy: Symlink created: " .. target_extensions .. " -> " .. template_extensions)
+  -- Create symlink for each item in _extensions
+  for item in items:gmatch("[^\r\n]+") do
+    local template_item = template_extensions .. "/" .. item
+    local target_item = target_extensions .. "/" .. item
+
+    local ln_cmd = string.format(
+      "ln -s %s %s",
+      vim.fn.shellescape(template_item),
+      vim.fn.shellescape(target_item)
+    )
+
+    local result = vim.fn.system(ln_cmd)
+    local exit_code = vim.v.shell_error
+
+    if exit_code ~= 0 then
+      vim.schedule(function()
+        vim.notify("Quartofy: Failed to create symlink for " .. item .. ": " .. result, vim.log.levels.ERROR)
+      end)
+      return false
+    end
+
+    debug_msg("Quartofy: Symlink created: " .. target_item .. " -> " .. template_item)
+  end
+
   return true
 end
 
