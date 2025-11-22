@@ -90,14 +90,31 @@ local function get_mtime(path)
   return tonumber(result)
 end
 
--- Helper function to ensure clean-revealjs template is cloned
-local function ensure_clean_revealjs_template()
+-- Template configurations
+local TEMPLATES = {
+  ["clean-revealjs"] = {
+    name = "clean-revealjs",
+    repo = "https://github.com/grantmcdermott/quarto-revealjs-clean",
+  },
+  ["beamer-revealjs"] = {
+    name = "beamer-revealjs",
+    repo = "https://github.com/wellsdurant/quarto-revealjs-beamer",
+  },
+}
+
+-- Helper function to ensure template is cloned
+local function ensure_template(template_name)
+  local template_config = TEMPLATES[template_name]
+  if not template_config then
+    return nil
+  end
+
   local data_dir = vim.fn.stdpath("data")
-  local template_dir = data_dir .. "/quartofy/templates/clean-revealjs"
+  local template_dir = data_dir .. "/quartofy/templates/" .. template_name
 
   -- Check if template already exists
   if vim.fn.isdirectory(template_dir) == 1 then
-    debug_msg("Quartofy: clean-revealjs template already exists at " .. template_dir)
+    debug_msg("Quartofy: " .. template_name .. " template already exists at " .. template_dir)
     return template_dir
   end
 
@@ -106,9 +123,10 @@ local function ensure_clean_revealjs_template()
   vim.fn.mkdir(parent_dir, "p")
 
   -- Clone the template
-  echo_msg("Quartofy: Cloning clean-revealjs template...")
+  echo_msg("Quartofy: Cloning " .. template_name .. " template...")
   local clone_cmd = string.format(
-    "git clone https://github.com/grantmcdermott/quarto-revealjs-clean %s",
+    "git clone %s %s",
+    vim.fn.shellescape(template_config.repo),
     vim.fn.shellescape(template_dir)
   )
 
@@ -117,7 +135,7 @@ local function ensure_clean_revealjs_template()
 
   if exit_code ~= 0 then
     vim.schedule(function()
-      vim.notify("Quartofy: Failed to clone clean-revealjs template: " .. result, vim.log.levels.ERROR)
+      vim.notify("Quartofy: Failed to clone " .. template_name .. " template: " .. result, vim.log.levels.ERROR)
     end)
     return nil
   end
@@ -126,8 +144,8 @@ local function ensure_clean_revealjs_template()
   return template_dir
 end
 
--- Helper function to create symlinks for clean-revealjs template files
-local function setup_clean_revealjs_symlinks(template_dir, target_dir)
+-- Helper function to create symlinks for template files
+local function setup_template_symlinks(template_dir, target_dir)
   -- Create symlink for _extensions directory
   local template_extensions = template_dir .. "/_extensions"
   local target_extensions = target_dir .. "/_extensions"
@@ -567,13 +585,13 @@ function M.process()
   -- Create directory if it doesn't exist
   vim.fn.mkdir(target_dir, "p")
 
-  -- Handle clean-revealjs format
-  if format == "clean-revealjs" then
-    local template_dir = ensure_clean_revealjs_template()
+  -- Handle template-based formats (clean-revealjs, beamer-revealjs, etc.)
+  if TEMPLATES[format] then
+    local template_dir = ensure_template(format)
     if template_dir then
-      setup_clean_revealjs_symlinks(template_dir, target_dir)
+      setup_template_symlinks(template_dir, target_dir)
     else
-      vim.notify("Quartofy: Failed to set up clean-revealjs template", vim.log.levels.ERROR)
+      vim.notify("Quartofy: Failed to set up " .. format .. " template", vim.log.levels.ERROR)
       return
     end
   end
