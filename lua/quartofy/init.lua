@@ -96,9 +96,9 @@ local TEMPLATES = {
     name = "clean-revealjs",
     repo = "https://github.com/grantmcdermott/quarto-revealjs-clean",
   },
-  ["keynote-revealjs"] = {
-    name = "keynote-revealjs",
-    repo = "https://github.com/wellsdurant/quarto-revealjs-keynote",
+  ["metropolis-beamer-revealjs"] = {
+    name = "metropolis-beamer-revealjs",
+    repo = "https://github.com/wellsdurant/metropolis-beamer",
   },
 }
 
