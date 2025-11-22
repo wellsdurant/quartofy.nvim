@@ -90,6 +90,83 @@ local function get_mtime(path)
   return tonumber(result)
 end
 
+-- Helper function to ensure clean-revealjs template is cloned
+local function ensure_clean_revealjs_template()
+  local data_dir = vim.fn.stdpath("data")
+  local template_dir = data_dir .. "/quartofy/templates/clean-revealjs"
+
+  -- Check if template already exists
+  if vim.fn.isdirectory(template_dir) == 1 then
+    debug_msg("Quartofy: clean-revealjs template already exists at " .. template_dir)
+    return template_dir
+  end
+
+  -- Create parent directory
+  local parent_dir = data_dir .. "/quartofy/templates"
+  vim.fn.mkdir(parent_dir, "p")
+
+  -- Clone the template
+  echo_msg("Quartofy: Cloning clean-revealjs template...")
+  local clone_cmd = string.format(
+    "git clone https://github.com/grantmcdermott/quarto-revealjs-clean %s",
+    vim.fn.shellescape(template_dir)
+  )
+
+  local result = vim.fn.system(clone_cmd)
+  local exit_code = vim.v.shell_error
+
+  if exit_code ~= 0 then
+    vim.schedule(function()
+      vim.notify("Quartofy: Failed to clone clean-revealjs template: " .. result, vim.log.levels.ERROR)
+    end)
+    return nil
+  end
+
+  echo_msg("Quartofy: Template cloned successfully")
+  return template_dir
+end
+
+-- Helper function to create symlinks for clean-revealjs template files
+local function setup_clean_revealjs_symlinks(template_dir, target_dir)
+  -- Create symlink for _extensions directory
+  local template_extensions = template_dir .. "/_extensions"
+  local target_extensions = target_dir .. "/_extensions"
+
+  -- Check if _extensions exists in template
+  if vim.fn.isdirectory(template_extensions) ~= 1 then
+    vim.schedule(function()
+      vim.notify("Quartofy: _extensions directory not found in template", vim.log.levels.WARN)
+    end)
+    return false
+  end
+
+  -- Remove existing symlink or directory if it exists
+  if vim.fn.isdirectory(target_extensions) == 1 or vim.fn.filereadable(target_extensions) == 1 then
+    local rm_cmd = string.format("rm -rf %s", vim.fn.shellescape(target_extensions))
+    os.execute(rm_cmd)
+  end
+
+  -- Create symlink
+  local ln_cmd = string.format(
+    "ln -s %s %s",
+    vim.fn.shellescape(template_extensions),
+    vim.fn.shellescape(target_extensions)
+  )
+
+  local result = vim.fn.system(ln_cmd)
+  local exit_code = vim.v.shell_error
+
+  if exit_code ~= 0 then
+    vim.schedule(function()
+      vim.notify("Quartofy: Failed to create symlink: " .. result, vim.log.levels.ERROR)
+    end)
+    return false
+  end
+
+  debug_msg("Quartofy: Symlink created: " .. target_extensions .. " -> " .. template_extensions)
+  return true
+end
+
 -- Helper function to parse YAML frontmatter
 local function parse_frontmatter()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
@@ -112,14 +189,26 @@ local function parse_frontmatter()
     return nil
   end
 
-  -- Check if frontmatter contains "revealjs"
+  -- Extract format value
   for i = 2, end_idx - 1 do
-    if lines[i]:match("revealjs") then
-      return true
+    -- Match format: value or format: {key: value}
+    local format_match = lines[i]:match("^%s*format:%s*(.+)$")
+    if format_match then
+      -- Check for simple format: revealjs or format: clean-revealjs
+      local simple_format = format_match:match("^([%w%-]+)%s*$")
+      if simple_format then
+        return simple_format
+      end
+    end
+
+    -- Also check for indented format definitions (e.g., under format:)
+    local indented_format = lines[i]:match("^%s+([%w%-]+):")
+    if indented_format and (indented_format == "revealjs" or indented_format:match("revealjs")) then
+      return indented_format
     end
   end
 
-  return false
+  return nil
 end
 
 -- Helper function to get absolute path of current file directory
@@ -444,9 +533,9 @@ function M.process()
     return
   end
 
-  -- Check for revealjs in frontmatter
-  local has_revealjs = parse_frontmatter()
-  if not has_revealjs then
+  -- Check for revealjs format in frontmatter
+  local format = parse_frontmatter()
+  if not format or not format:match("revealjs") then
     vim.notify("File does not contain 'revealjs' in YAML frontmatter", vim.log.levels.WARN)
     return
   end
@@ -477,6 +566,17 @@ function M.process()
 
   -- Create directory if it doesn't exist
   vim.fn.mkdir(target_dir, "p")
+
+  -- Handle clean-revealjs format
+  if format == "clean-revealjs" then
+    local template_dir = ensure_clean_revealjs_template()
+    if template_dir then
+      setup_clean_revealjs_symlinks(template_dir, target_dir)
+    else
+      vim.notify("Quartofy: Failed to set up clean-revealjs template", vim.log.levels.ERROR)
+      return
+    end
+  end
 
   -- Only process file if it has been updated
   if should_copy then
