@@ -102,6 +102,64 @@ local TEMPLATES = {
   },
 }
 
+-- Helper function to check and update template if needed
+local function update_template(template_dir, template_name)
+  -- Check if it's a git repository
+  local git_dir = template_dir .. "/.git"
+  if vim.fn.isdirectory(git_dir) ~= 1 then
+    debug_msg("Quartofy: " .. template_name .. " is not a git repository, skipping update check")
+    return true
+  end
+
+  -- Fetch from origin
+  debug_msg("Quartofy: Checking for updates to " .. template_name .. " template...")
+  local fetch_cmd = string.format(
+    "cd %s && git fetch origin 2>&1",
+    vim.fn.shellescape(template_dir)
+  )
+
+  local fetch_result = vim.fn.system(fetch_cmd)
+  local fetch_exit = vim.v.shell_error
+
+  if fetch_exit ~= 0 then
+    debug_msg("Quartofy: Failed to fetch updates for " .. template_name .. ": " .. fetch_result, vim.log.levels.WARN)
+    return true  -- Continue even if fetch fails
+  end
+
+  -- Check if local is behind remote
+  local status_cmd = string.format(
+    "cd %s && git rev-list HEAD...origin/main --count 2>&1 || git rev-list HEAD...origin/master --count 2>&1",
+    vim.fn.shellescape(template_dir)
+  )
+
+  local status_result = vim.fn.system(status_cmd)
+  local behind_count = tonumber(status_result)
+
+  if behind_count and behind_count > 0 then
+    echo_msg("Quartofy: Updating " .. template_name .. " template (" .. behind_count .. " commits behind)...")
+    local pull_cmd = string.format(
+      "cd %s && git pull origin 2>&1",
+      vim.fn.shellescape(template_dir)
+    )
+
+    local pull_result = vim.fn.system(pull_cmd)
+    local pull_exit = vim.v.shell_error
+
+    if pull_exit ~= 0 then
+      vim.schedule(function()
+        vim.notify("Quartofy: Failed to update " .. template_name .. " template: " .. pull_result, vim.log.levels.WARN)
+      end)
+      return true  -- Continue even if update fails
+    end
+
+    echo_msg("Quartofy: " .. template_name .. " template updated successfully")
+  else
+    debug_msg("Quartofy: " .. template_name .. " template is up to date")
+  end
+
+  return true
+end
+
 -- Helper function to ensure template is cloned
 local function ensure_template(template_name)
   local template_config = TEMPLATES[template_name]
@@ -115,6 +173,8 @@ local function ensure_template(template_name)
   -- Check if template already exists
   if vim.fn.isdirectory(template_dir) == 1 then
     debug_msg("Quartofy: " .. template_name .. " template already exists at " .. template_dir)
+    -- Check for updates
+    update_template(template_dir, template_name)
     return template_dir
   end
 
