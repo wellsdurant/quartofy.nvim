@@ -791,7 +791,7 @@ function M.process()
             vim.defer_fn(function()
               -- Start preview after successful render
               local preview_cmd = string.format(
-                "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
+                "cd %s && quarto preview %s --port %d >/dev/null 2>&1",
                 vim.fn.shellescape(target_dir),
                 vim.fn.shellescape(target_qmd),
                 M.config.preview_port
