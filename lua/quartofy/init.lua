@@ -6,8 +6,9 @@ M.config = {
   preview_port = 4200,        -- Default port for quarto preview
 }
 
--- Store the preview job ID
+-- Store the preview job ID and current preview file
 M.preview_job_id = nil
+M.preview_file = nil  -- Track the source markdown file being previewed
 
 -- Debug flag (set by QuartofyDebug command)
 M.debug_mode = false
@@ -19,9 +20,15 @@ end
 
 -- Function to stop the preview server
 function M.stop_preview()
+  -- Remove autocmd if preview_file is set
+  if M.preview_file then
+    vim.api.nvim_clear_autocmds({ group = "QuartofyAutoUpdate" })
+  end
+
   if M.preview_job_id then
     vim.fn.jobstop(M.preview_job_id)
     M.preview_job_id = nil
+    M.preview_file = nil
     echo_msg("Quartofy: Preview stopped")
   else
     -- Try to kill by port
@@ -30,6 +37,7 @@ function M.stop_preview()
       on_exit = function(_, exit_code)
         if exit_code == 0 then
           vim.schedule(function()
+            M.preview_file = nil
             echo_msg("Quartofy: Preview stopped (killed by port)")
           end)
         else
@@ -173,8 +181,6 @@ local function ensure_template(template_name)
   -- Check if template already exists
   if vim.fn.isdirectory(template_dir) == 1 then
     debug_msg("Quartofy: " .. template_name .. " template already exists at " .. template_dir)
-    -- Check for updates
-    update_template(template_dir, template_name)
     return template_dir
   end
 
@@ -622,6 +628,52 @@ local function process_images(content, source_dir, target_dir)
   return processed
 end
 
+-- Helper function to process content and update .qmd file
+local function update_qmd_from_file(current_file, target_dir, target_qmd, source_dir)
+  -- Read the source file
+  local file = io.open(current_file, "r")
+  if not file then
+    debug_msg("Quartofy: Failed to read " .. current_file, vim.log.levels.ERROR)
+    return false
+  end
+
+  local content = {}
+  for line in file:lines() do
+    table.insert(content, line)
+  end
+  file:close()
+
+  -- Ensure Zotero cache is loaded before processing citations
+  ensure_zotero_cache()
+
+  -- Process Zotero citations
+  debug_msg("Quartofy: Processing Zotero citations...")
+  content = process_zotero_links(content)
+
+  -- Process image links and copy images
+  debug_msg("Quartofy: Processing images...")
+  local processed_content = process_images(content, source_dir, target_dir)
+
+  -- Write processed content to .qmd file
+  local qmd_file = io.open(target_qmd, "w")
+  if not qmd_file then
+    debug_msg("Quartofy: Failed to create " .. target_qmd, vim.log.levels.ERROR)
+    return false
+  end
+
+  for _, line in ipairs(processed_content) do
+    -- Debug: Show citation lines being written
+    if line:match("%^%[.-%]") then
+      debug_msg("Quartofy: Writing citation line to .qmd: " .. line:sub(1, 100))
+    end
+    qmd_file:write(line .. "\n")
+  end
+  qmd_file:close()
+
+  debug_msg("Quartofy: .qmd file updated")
+  return true
+end
+
 -- Main function to process the file
 function M.process()
   -- Check if current buffer is a markdown file
@@ -685,45 +737,13 @@ function M.process()
       vim.fn.shellescape(target_md))
     os.execute(copy_cmd)
 
-    -- Read the markdown file
-    local file = io.open(target_md, "r")
-    if not file then
-      vim.notify("Failed to read " .. target_md, vim.log.levels.ERROR)
+    -- Process and update .qmd file
+    echo_msg("Quartofy: Processing Zotero citations and images...")
+    local success = update_qmd_from_file(target_md, target_dir, target_qmd, source_dir)
+    if not success then
+      vim.notify("Quartofy: Failed to process file", vim.log.levels.ERROR)
       return
     end
-
-    local content = {}
-    for line in file:lines() do
-      table.insert(content, line)
-    end
-    file:close()
-
-    -- Ensure Zotero cache is loaded before processing citations
-    ensure_zotero_cache()
-
-    -- Process Zotero citations
-    echo_msg("Quartofy: Processing Zotero citations...")
-    content = process_zotero_links(content)
-
-    -- Process image links and copy images
-    echo_msg("Quartofy: Processing images...")
-    local processed_content = process_images(content, source_dir, target_dir)
-
-    -- Write processed content to .qmd file
-    local qmd_file = io.open(target_qmd, "w")
-    if not qmd_file then
-      vim.notify("Failed to create " .. target_qmd, vim.log.levels.ERROR)
-      return
-    end
-
-    for _, line in ipairs(processed_content) do
-      -- Debug: Show citation lines being written
-      if line:match("%^%[.-%]") then
-        debug_msg("Quartofy: Writing citation line to .qmd: " .. line:sub(1, 100))
-      end
-      qmd_file:write(line .. "\n")
-    end
-    qmd_file:close()
 
     echo_msg("Quartofy: Generating .qmd file complete")
   else
@@ -758,37 +778,63 @@ function M.process()
     on_exit = function(_, exit_code)
       if exit_code == 0 then
         vim.schedule(function()
-          echo_msg("Quartofy: Render complete! Starting preview...")
+          -- Check if we're already previewing the same file
+          if M.preview_file == current_file and M.preview_job_id then
+            echo_msg("Quartofy: Render complete! Preview already running on port " .. M.config.preview_port)
+          else
+            echo_msg("Quartofy: Render complete! Starting preview...")
 
-          -- Kill any existing process on the port before starting preview
-          kill_port(M.config.preview_port)
+            -- Kill any existing process on the port before starting preview
+            kill_port(M.config.preview_port)
 
-          -- Small delay to ensure port is freed
-          vim.defer_fn(function()
-            -- Start preview after successful render
-            local preview_cmd = string.format(
-              "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
-              vim.fn.shellescape(target_dir),
-              vim.fn.shellescape(target_qmd),
-              M.config.preview_port
-            )
-
-            -- Store the preview job ID for later control
-            M.preview_job_id = vim.fn.jobstart(preview_cmd, {
-              detach = true,
-              on_exit = function()
-                M.preview_job_id = nil
-                vim.schedule(function()
-                  echo_msg("Quartofy: Preview stopped")
-                end)
-              end,
-            })
-
-            -- Notify user that command is done
+            -- Small delay to ensure port is freed
             vim.defer_fn(function()
-              echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (use :QuartofyStop to stop)")
-            end, 1000)
-          end, 100)
+              -- Start preview after successful render
+              local preview_cmd = string.format(
+                "cd %s && quarto preview %s --port %d --no-watch-inputs >/dev/null 2>&1",
+                vim.fn.shellescape(target_dir),
+                vim.fn.shellescape(target_qmd),
+                M.config.preview_port
+              )
+
+              -- Store the preview job ID and file for later control
+              M.preview_job_id = vim.fn.jobstart(preview_cmd, {
+                detach = true,
+                on_exit = function()
+                  M.preview_job_id = nil
+                  M.preview_file = nil
+                  vim.api.nvim_clear_autocmds({ group = "QuartofyAutoUpdate" })
+                  vim.schedule(function()
+                    echo_msg("Quartofy: Preview stopped")
+                  end)
+                end,
+              })
+              M.preview_file = current_file
+
+              -- Set up autocmd to watch for file changes
+              vim.api.nvim_create_augroup("QuartofyAutoUpdate", { clear = true })
+              vim.api.nvim_create_autocmd("BufWritePost", {
+                group = "QuartofyAutoUpdate",
+                pattern = current_file,
+                callback = function()
+                  -- Copy the updated file
+                  local copy_cmd = string.format("cp %s %s",
+                    vim.fn.shellescape(current_file),
+                    vim.fn.shellescape(target_md))
+                  os.execute(copy_cmd)
+
+                  -- Update the .qmd file
+                  update_qmd_from_file(target_md, target_dir, target_qmd, source_dir)
+                  echo_msg("Quartofy: Auto-updated preview")
+                end,
+              })
+
+              -- Notify user that command is done
+              vim.defer_fn(function()
+                echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (auto-updates on save)")
+              end, 1000)
+            end, 100)
+          end
         end)
       else
         vim.schedule(function()
@@ -812,6 +858,57 @@ function M.process_debug()
   echo_msg("Quartofy: Running in DEBUG mode...")
   M.process()
   M.debug_mode = false
+end
+
+-- Function to update all templates
+function M.update_templates()
+  local data_dir = vim.fn.stdpath("data")
+  local templates_dir = data_dir .. "/quartofy/templates"
+
+  -- Check if templates directory exists
+  if vim.fn.isdirectory(templates_dir) ~= 1 then
+    vim.notify("Quartofy: No templates installed", vim.log.levels.INFO)
+    return
+  end
+
+  -- Get list of installed templates
+  local ls_cmd = string.format("ls -A %s", vim.fn.shellescape(templates_dir))
+  local items = vim.fn.system(ls_cmd)
+
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Quartofy: Failed to list templates directory", vim.log.levels.ERROR)
+    return
+  end
+
+  local updated_count = 0
+  local error_count = 0
+
+  -- Update each template
+  for template_name in items:gmatch("[^\r\n]+") do
+    local template_dir = templates_dir .. "/" .. template_name
+
+    if vim.fn.isdirectory(template_dir) == 1 then
+      echo_msg("Quartofy: Updating " .. template_name .. " template...")
+      local success = update_template(template_dir, template_name)
+
+      if success then
+        updated_count = updated_count + 1
+      else
+        error_count = error_count + 1
+      end
+    end
+  end
+
+  -- Report results
+  if updated_count > 0 or error_count > 0 then
+    local msg = string.format("Quartofy: Updated %d template(s)", updated_count)
+    if error_count > 0 then
+      msg = msg .. string.format(" (%d failed)", error_count)
+    end
+    vim.notify(msg, vim.log.levels.INFO)
+  else
+    vim.notify("Quartofy: No templates to update", vim.log.levels.INFO)
+  end
 end
 
 return M

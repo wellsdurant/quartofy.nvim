@@ -72,17 +72,23 @@ Content here
    :Quartofy
    ```
 
-   Or the alias:
-   ```vim
-   :QuartofyRevealJS
-   ```
+   The preview will open in your browser and auto-update on every save.
 
-3. To stop the preview server:
+3. Make changes to your markdown file and save (`:w`)
+
+   The preview automatically updates with your changes!
+
+4. To stop the preview server:
    ```vim
    :QuartofyStop
    ```
 
-4. For debugging (to see detailed processing information):
+5. To update installed templates:
+   ```vim
+   :QuartofyUpdateTemplates
+   ```
+
+6. For debugging (to see detailed processing information):
    ```vim
    :QuartofyDebug
    ```
@@ -94,6 +100,21 @@ Content here
   - Otherwise, attempts to find and kill the process on the configured port
   - Shows a message confirming the action
 - **Automatic cleanup**: The preview server is automatically stopped when you exit Neovim
+- **Smart reuse**: When rendering the same file multiple times, the preview server is reused instead of being restarted
+  - This keeps your browser tab open and just refreshes the content
+  - Switching to a different file will stop the old preview and start a new one
+- **Auto-update on save**: When a preview is running, the plugin automatically watches for changes to your markdown file
+  - Every time you save the file (`:w`), it automatically processes and updates the preview
+  - No need to manually run `:Quartofy` again - just save and the preview refreshes
+
+## Managing Templates
+
+- `:QuartofyUpdateTemplates` - Update all installed templates
+  - Fetches latest changes from GitHub repositories
+  - Updates templates that are behind their remote branches
+  - Shows summary of updated templates
+- **Automatic installation**: Templates are automatically cloned on first use
+- Templates are stored in: `~/.local/share/nvim/quartofy/templates/` (or your configured data directory)
 
 ## Debugging
 
@@ -124,7 +145,10 @@ When you run the `:Quartofy` command:
 4. **Processes images**: Copies images to target directory and updates paths
 5. **Generates Quarto file**: Creates `[filename].qmd` with processed content
 6. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
-7. **Previews**: Launches `quarto preview` to display the presentation
+7. **Previews**: Launches or reuses `quarto preview` to display the presentation
+   - If previewing the same file, reuses the existing preview server
+   - If previewing a different file, stops the old server and starts a new one
+   - Sets up auto-update: watches for file saves and automatically updates the preview
 
 ## Zotero Citation Processing
 

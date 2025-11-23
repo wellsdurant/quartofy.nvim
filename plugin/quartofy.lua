@@ -11,13 +11,6 @@ end, {
   desc = "Process markdown file for Quarto revealjs presentation"
 })
 
--- Optional: Create an alias
-vim.api.nvim_create_user_command("QuartofyRevealJS", function()
-  require("quartofy").process()
-end, {
-  desc = "Process markdown file for Quarto revealjs presentation"
-})
-
 -- Command to run with debug output
 vim.api.nvim_create_user_command("QuartofyDebug", function()
   require("quartofy").process_debug()
@@ -30,6 +23,13 @@ vim.api.nvim_create_user_command("QuartofyStop", function()
   require("quartofy").stop_preview()
 end, {
   desc = "Stop the Quartofy preview server"
+})
+
+-- Command to update templates
+vim.api.nvim_create_user_command("QuartofyUpdateTemplates", function()
+  require("quartofy").update_templates()
+end, {
+  desc = "Update all installed Quartofy templates"
 })
 
 -- Automatically stop preview server when Neovim exits
