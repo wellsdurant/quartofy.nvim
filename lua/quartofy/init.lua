@@ -823,9 +823,8 @@ function M.process()
                     vim.fn.shellescape(target_md))
                   os.execute(copy_cmd)
 
-                  -- Update the .qmd file
+                  -- Update the .qmd file (silently)
                   update_qmd_from_file(target_md, target_dir, target_qmd, source_dir)
-                  echo_msg("Quartofy: Auto-updated preview")
                 end,
               })
 
