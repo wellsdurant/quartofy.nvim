@@ -690,6 +690,15 @@ function M.process()
     return
   end
 
+  -- Stop any existing preview before starting a new one
+  if M.preview_job_id then
+    debug_msg("Quartofy: Stopping existing preview before re-rendering...")
+    vim.fn.jobstop(M.preview_job_id)
+    M.preview_job_id = nil
+    M.preview_file = nil
+    vim.api.nvim_clear_autocmds({ group = "QuartofyAutoUpdate" })
+  end
+
   -- Get current file info
   local current_file = vim.fn.expand("%:p")
   local filename = vim.fn.expand("%:t:r")  -- filename without extension
@@ -778,17 +787,13 @@ function M.process()
     on_exit = function(_, exit_code)
       if exit_code == 0 then
         vim.schedule(function()
-          -- Check if we're already previewing the same file
-          if M.preview_file == current_file and M.preview_job_id then
-            echo_msg("Quartofy: Render complete! Preview already running on port " .. M.config.preview_port)
-          else
-            echo_msg("Quartofy: Render complete! Starting preview...")
+          echo_msg("Quartofy: Render complete! Starting preview...")
 
-            -- Kill any existing process on the port before starting preview
-            kill_port(M.config.preview_port)
+          -- Kill any existing process on the port before starting preview
+          kill_port(M.config.preview_port)
 
-            -- Small delay to ensure port is freed
-            vim.defer_fn(function()
+          -- Small delay to ensure port is freed
+          vim.defer_fn(function()
               -- Start preview after successful render
               local preview_cmd = string.format(
                 "cd %s && quarto preview %s --port %d >/dev/null 2>&1",
@@ -833,7 +838,6 @@ function M.process()
                 echo_msg("Quartofy: Done! Preview running on port " .. M.config.preview_port .. " (auto-updates on save)")
               end, 1000)
             end, 100)
-          end
         end)
       else
         vim.schedule(function()
