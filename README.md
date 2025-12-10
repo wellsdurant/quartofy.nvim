@@ -132,6 +132,36 @@ This command runs the same process as `:Quartofy` but with verbose debug output 
 
 Use this when troubleshooting citation conversion issues or reporting bugs.
 
+## Image Processing
+
+The plugin supports both standard markdown image syntax and wiki-style image links:
+
+### Standard Markdown Syntax
+```markdown
+![Alt text](path/to/image.png)
+![](./images/example.png)
+```
+
+### Wiki-Style Image Links (Obsidian)
+```markdown
+![[image.png]]
+![[path/to/image.png]]
+```
+
+For wiki-style links, the plugin can search your vault for the image file. Configure the vault path:
+
+```lua
+require("quartofy").setup({
+  vault_path = "/path/to/your/vault",
+})
+```
+
+The plugin will:
+1. First try to find the image relative to the current file
+2. If not found, search the configured vault path
+3. Convert wiki-style links to standard markdown: `![[image.png]]` → `![](image.png)`
+4. Handle filenames with spaces by encoding them: `![[Pasted image 20231201.png]]` → `![](Pasted%20image%2020231201.png)`
+
 ## What It Does
 
 When you run the `:Quartofy` command:
@@ -142,7 +172,7 @@ When you run the `:Quartofy` command:
    - Copies the file to `/tmp/quartofy/[filename]/[filename].md`
    - Only overwrites if the current file is newer
 3. **Processes Zotero citations**: Converts Zotero links to IEEE format citations with hyperlinks
-4. **Processes images**: Copies images to target directory and updates paths
+4. **Processes images**: Copies images to target directory and updates paths (supports both standard and wiki-style syntax)
 5. **Generates Quarto file**: Creates `[filename].qmd` with processed content
 6. **Renders**: Runs `quarto render [filename].qmd --to revealjs`
 7. **Previews**: Launches or reuses `quarto preview` to display the presentation
@@ -208,6 +238,7 @@ The plugin works out of the box with sensible defaults. To customize, call `setu
 require("quartofy").setup({
   default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
   preview_port = 4200,        -- Port for quarto preview (default: 4200)
+  vault_path = nil,           -- Path to vault for wiki-style image links (optional)
 })
 ```
 
@@ -215,6 +246,7 @@ require("quartofy").setup({
 
 - `default_keybinding` (boolean): Enable/disable the `<Leader>nr` keybinding (default: `true`)
 - `preview_port` (number): Port number for Quarto preview server. Using a consistent port prevents opening multiple browser tabs (default: `4200`)
+- `vault_path` (string): Path to your Obsidian vault or notes directory. When set, enables wiki-style image link resolution (e.g., `![[image.png]]`). The plugin will search this directory for image files that aren't found relative to the current file (default: `nil`)
 
 ### Disabling the Default Keybinding
 

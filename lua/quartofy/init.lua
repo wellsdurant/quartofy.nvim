@@ -4,6 +4,7 @@ local M = {}
 M.config = {
   default_keybinding = true,  -- Set to false to disable <Leader>nr keybinding
   preview_port = 4200,        -- Default port for quarto preview
+  vault_path = nil,           -- Path to vault for wiki-style image links (optional)
 }
 
 -- Store the preview job ID and current preview file
@@ -581,6 +582,36 @@ local function process_zotero_links(content)
   return processed
 end
 
+-- Helper function to find an image file in the vault
+local function find_image_in_vault(filename, vault_path)
+  if not vault_path or vault_path == "" then
+    return nil
+  end
+
+  -- Use find command to search for the file in the vault
+  local find_cmd = string.format("find %s -type f -name %s 2>/dev/null | head -1",
+    vim.fn.shellescape(vault_path),
+    vim.fn.shellescape(filename))
+
+  local handle = io.popen(find_cmd)
+  if not handle then
+    return nil
+  end
+
+  local result = handle:read("*a")
+  handle:close()
+
+  -- Trim whitespace
+  result = result:gsub("^%s*(.-)%s*$", "%1")
+
+  if result ~= "" and file_exists(result) then
+    debug_msg("Quartofy: Found image in vault: " .. result)
+    return result
+  end
+
+  return nil
+end
+
 -- Helper function to process a single image path and copy it
 local function process_and_copy_image(path, source_dir, target_dir)
   -- Skip if URL
@@ -599,7 +630,14 @@ local function process_and_copy_image(path, source_dir, target_dir)
 
   -- Check if source image exists
   if not file_exists(source_path) then
-    return nil, path
+    -- If file not found relative to source, try searching in vault
+    local vault_result = find_image_in_vault(path, M.config.vault_path)
+    if vault_result then
+      source_path = vault_result
+    else
+      debug_msg("Quartofy: Image not found: " .. path, vim.log.levels.WARN)
+      return nil, path
+    end
   end
 
   -- Get filename and copy to target directory
@@ -611,6 +649,8 @@ local function process_and_copy_image(path, source_dir, target_dir)
     vim.fn.shellescape(source_path),
     vim.fn.shellescape(target_path))
   os.execute(copy_cmd)
+
+  debug_msg("Quartofy: Copied image: " .. filename)
 
   -- Return just the filename (relative to .qmd file)
   return filename, nil
