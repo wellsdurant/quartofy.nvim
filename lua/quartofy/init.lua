@@ -622,20 +622,37 @@ local function process_and_copy_image(path, source_dir, target_dir)
   -- Handle Excalidraw files: look for PNG with same base name
   local is_excalidraw = path:match("%.excalidraw%.md$") or path:match("%.excalidraw$")
   if is_excalidraw then
-    -- Extract base name and look for PNG export
+    -- Extract base name and create PNG filename
+    -- Obsidian exports as "filename.excalidraw.png", so we need to handle both cases
     local base_name = path:gsub("%.excalidraw%.md$", ""):gsub("%.excalidraw$", "")
-    local png_name = vim.fn.fnamemodify(base_name, ":t") .. ".png"
+    local base_filename = vim.fn.fnamemodify(base_name, ":t")
 
-    debug_msg("Quartofy: Detected Excalidraw file, looking for PNG: " .. png_name)
+    -- Try both naming conventions:
+    -- 1. filename.excalidraw.png (Obsidian's default export format)
+    -- 2. filename.png (user may have renamed)
+    local png_names = {
+      base_filename .. ".excalidraw.png",
+      base_filename .. ".png"
+    }
 
-    -- Search for PNG with same base name in vault
-    local png_result = find_image_in_vault(png_name, M.config.vault_path)
+    debug_msg("Quartofy: Detected Excalidraw file, looking for PNG exports...")
+
+    -- Try to find PNG with either naming convention
+    local png_result = nil
+    for _, png_name in ipairs(png_names) do
+      debug_msg("Quartofy: Trying: " .. png_name)
+      png_result = find_image_in_vault(png_name, M.config.vault_path)
+      if png_result then
+        break
+      end
+    end
+
     if png_result then
       -- Replace path with PNG path for further processing
       path = png_result
       debug_msg("Quartofy: Found PNG for Excalidraw: " .. png_result)
     else
-      debug_msg("Quartofy: No PNG found for Excalidraw file: " .. png_name .. ". Skipping.", vim.log.levels.WARN)
+      debug_msg("Quartofy: No PNG found for Excalidraw file. Tried: " .. table.concat(png_names, ", ") .. ". Skipping.", vim.log.levels.WARN)
       return nil, path
     end
   end
