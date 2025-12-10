@@ -581,45 +581,70 @@ local function process_zotero_links(content)
   return processed
 end
 
+-- Helper function to process a single image path and copy it
+local function process_and_copy_image(path, source_dir, target_dir)
+  -- Skip if URL
+  if path:match("^https?://") then
+    return nil, path
+  end
+
+  -- Handle absolute or relative path
+  local source_path
+  if path:match("^/") then
+    source_path = path
+  else
+    source_path = source_dir .. "/" .. path
+    source_path = vim.fn.simplify(source_path)
+  end
+
+  -- Check if source image exists
+  if not file_exists(source_path) then
+    return nil, path
+  end
+
+  -- Get filename and copy to target directory
+  local filename = vim.fn.fnamemodify(source_path, ":t")
+  local target_path = target_dir .. "/" .. filename
+
+  -- Copy image file
+  local copy_cmd = string.format("cp %s %s",
+    vim.fn.shellescape(source_path),
+    vim.fn.shellescape(target_path))
+  os.execute(copy_cmd)
+
+  -- Return just the filename (relative to .qmd file)
+  return filename, nil
+end
+
 -- Helper function to process image links and copy images
 local function process_images(content, source_dir, target_dir)
   local processed = {}
 
   for _, line in ipairs(content) do
-    -- Match markdown image syntax: ![alt](path)
-    local modified_line = line:gsub("!%[(.-)%]%((.-)%)", function(alt, path)
-      -- Skip if URL
-      if path:match("^https?://") then
-        return "![" .. alt .. "](" .. path .. ")"
-      end
+    local modified_line = line
 
-      -- Handle absolute or relative path
-      local source_path
-      if path:match("^/") then
-        source_path = path
+    -- First, handle wiki-style image syntax: ![[image_name]] or ![[path/to/image]]
+    modified_line = modified_line:gsub("!%[%[(.-)%]%]", function(image_ref)
+      local filename, original = process_and_copy_image(image_ref, source_dir, target_dir)
+      if filename then
+        -- Convert to standard markdown syntax with just the filename
+        return "![](" .. filename .. ")"
       else
-        source_path = source_dir .. "/" .. path
-        source_path = vim.fn.simplify(source_path)
+        -- Keep original if processing failed
+        return "![[" .. original .. "]]"
       end
+    end)
 
-      -- Check if source image exists
-      if not file_exists(source_path) then
-        -- Keep original path if file doesn't exist
-        return "![" .. alt .. "](" .. path .. ")"
+    -- Then, handle standard markdown image syntax: ![alt](path)
+    modified_line = modified_line:gsub("!%[(.-)%]%((.-)%)", function(alt, path)
+      local filename, original = process_and_copy_image(path, source_dir, target_dir)
+      if filename then
+        -- Return with just the filename (relative to .qmd file)
+        return "![" .. alt .. "](" .. filename .. ")"
+      else
+        -- Keep original if processing failed
+        return "![" .. alt .. "](" .. original .. ")"
       end
-
-      -- Get filename and copy to target directory
-      local filename = vim.fn.fnamemodify(source_path, ":t")
-      local target_path = target_dir .. "/" .. filename
-
-      -- Copy image file
-      local copy_cmd = string.format("cp %s %s",
-        vim.fn.shellescape(source_path),
-        vim.fn.shellescape(target_path))
-      os.execute(copy_cmd)
-
-      -- Return with just the filename (relative to .qmd file)
-      return "![" .. alt .. "](" .. filename .. ")"
     end)
 
     table.insert(processed, modified_line)
