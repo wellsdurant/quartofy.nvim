@@ -631,13 +631,18 @@ local function process_and_copy_image(path, source_dir, target_dir)
   -- Check if source image exists
   if not file_exists(source_path) then
     -- If file not found relative to source, try searching in vault
-    local vault_result = find_image_in_vault(path, M.config.vault_path)
+    -- Extract just the filename for vault search (in case path contains subdirs)
+    local filename_only = vim.fn.fnamemodify(path, ":t")
+    local vault_result = find_image_in_vault(filename_only, M.config.vault_path)
     if vault_result then
       source_path = vault_result
+      debug_msg("Quartofy: Found in vault: " .. vault_result)
     else
       debug_msg("Quartofy: Image not found: " .. path, vim.log.levels.WARN)
       return nil, path
     end
+  else
+    debug_msg("Quartofy: Found locally: " .. source_path)
   end
 
   -- Get filename and copy to target directory
@@ -774,6 +779,8 @@ function M.process()
   local current_file = vim.fn.expand("%:p")
   local filename = vim.fn.expand("%:t:r")  -- filename without extension
   local source_dir = get_current_file_dir()
+
+  debug_msg("Quartofy: vault_path = " .. (M.config.vault_path or "nil"))
 
   -- Sanitize filename for safe filesystem usage
   filename = sanitize_filename(filename)
