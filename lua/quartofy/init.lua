@@ -619,6 +619,27 @@ local function process_and_copy_image(path, source_dir, target_dir)
     return nil, path
   end
 
+  -- Handle Excalidraw files: look for PNG with same base name
+  local is_excalidraw = path:match("%.excalidraw%.md$") or path:match("%.excalidraw$")
+  if is_excalidraw then
+    -- Extract base name and look for PNG export
+    local base_name = path:gsub("%.excalidraw%.md$", ""):gsub("%.excalidraw$", "")
+    local png_name = vim.fn.fnamemodify(base_name, ":t") .. ".png"
+
+    debug_msg("Quartofy: Detected Excalidraw file, looking for PNG: " .. png_name)
+
+    -- Search for PNG with same base name in vault
+    local png_result = find_image_in_vault(png_name, M.config.vault_path)
+    if png_result then
+      -- Replace path with PNG path for further processing
+      path = png_result
+      debug_msg("Quartofy: Found PNG for Excalidraw: " .. png_result)
+    else
+      debug_msg("Quartofy: No PNG found for Excalidraw file: " .. png_name .. ". Skipping.", vim.log.levels.WARN)
+      return nil, path
+    end
+  end
+
   -- Handle absolute or relative path
   local source_path
   if path:match("^/") then

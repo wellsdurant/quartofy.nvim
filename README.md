@@ -161,6 +161,7 @@ The plugin will:
 2. If not found, search the configured vault path
 3. Convert wiki-style links to standard markdown: `![[image.png]]` → `![](image.png)`
 4. Handle filenames with spaces by encoding them: `![[Pasted image 20231201.png]]` → `![](Pasted%20image%2020231201.png)`
+5. For Excalidraw files (`.excalidraw` or `.excalidraw.md`), automatically finds and uses the PNG export with the same base name
 
 ## What It Does
 
