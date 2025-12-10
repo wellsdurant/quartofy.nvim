@@ -616,6 +616,12 @@ local function process_and_copy_image(path, source_dir, target_dir)
   return filename, nil
 end
 
+-- Helper function to encode spaces in filenames for markdown URLs
+local function encode_markdown_path(path)
+  -- Replace spaces with %20 for markdown URL compatibility
+  return path:gsub(" ", "%%20")
+end
+
 -- Helper function to process image links and copy images
 local function process_images(content, source_dir, target_dir)
   local processed = {}
@@ -627,8 +633,8 @@ local function process_images(content, source_dir, target_dir)
     modified_line = modified_line:gsub("!%[%[(.-)%]%]", function(image_ref)
       local filename, original = process_and_copy_image(image_ref, source_dir, target_dir)
       if filename then
-        -- Convert to standard markdown syntax with just the filename
-        return "![](" .. filename .. ")"
+        -- Convert to standard markdown syntax with encoded filename
+        return "![](" .. encode_markdown_path(filename) .. ")"
       else
         -- Keep original if processing failed
         return "![[" .. original .. "]]"
@@ -639,8 +645,8 @@ local function process_images(content, source_dir, target_dir)
     modified_line = modified_line:gsub("!%[(.-)%]%((.-)%)", function(alt, path)
       local filename, original = process_and_copy_image(path, source_dir, target_dir)
       if filename then
-        -- Return with just the filename (relative to .qmd file)
-        return "![" .. alt .. "](" .. filename .. ")"
+        -- Return with encoded filename (relative to .qmd file)
+        return "![" .. alt .. "](" .. encode_markdown_path(filename) .. ")"
       else
         -- Keep original if processing failed
         return "![" .. alt .. "](" .. original .. ")"
