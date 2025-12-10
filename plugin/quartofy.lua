@@ -32,6 +32,20 @@ end, {
   desc = "Update all installed Quartofy templates"
 })
 
+-- Command to show configuration
+vim.api.nvim_create_user_command("QuartofyConfig", function()
+  local quartofy = require("quartofy")
+  local config_lines = {
+    "Quartofy Configuration:",
+    "  default_keybinding: " .. tostring(quartofy.config.default_keybinding),
+    "  preview_port: " .. tostring(quartofy.config.preview_port),
+    "  vault_path: " .. (quartofy.config.vault_path or "nil (not set)"),
+  }
+  vim.notify(table.concat(config_lines, "\n"), vim.log.levels.INFO)
+end, {
+  desc = "Show Quartofy configuration"
+})
+
 -- Automatically stop preview server when Neovim exits
 vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()
